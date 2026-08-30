@@ -13,6 +13,8 @@ module.exports = {
     // Barrels re-export; they have no logic to cover.
     '!src/**/index.ts',
     '!src/**/*.test.ts',
+    // Generated from the schema, not hand-written.
+    '!src/services/supabase/database.types.ts',
   ],
   // The domain layer is where correctness lives, so it carries a hard gate.
   coverageThreshold: {
