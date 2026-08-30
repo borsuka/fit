@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { View } from 'react-native';
 
-import { isPasswordAcceptable, MIN_PASSWORD_LENGTH } from '@/services/auth/authService';
+import { isPasswordAcceptable, MIN_PASSWORD_LENGTH } from '@/domain/auth/passwordPolicy';
 import { Button, Text, TextField, useTheme } from '@/ui';
 
 export interface AuthFormValues {

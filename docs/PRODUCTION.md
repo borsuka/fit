@@ -1,7 +1,8 @@
 # Production Readiness
 
 **Last updated:** 2026-08-31
-**Status: not shippable.** Four blockers remain; two are closed. They are real
+**Status: not shippable.** Three blockers remain, two are closed and one is
+partly done. They are real
 constraints, not paperwork.
 
 This is an honest ledger, not a victory lap. Everything marked done was
@@ -31,7 +32,7 @@ Gates, all green as of this commit:
 tsc --noEmit                exit 0
 expo lint                   exit 0, 0 errors
 depcruise src               exit 0, 104 modules
-jest                        269 tests
+jest                        294 tests (25 of them component tests)
 supabase test db            125 pgTAP tests
 ```
 
@@ -111,13 +112,28 @@ write-through path on barcode miss. **The ODbL question must be settled first** 
 caching for our own users is straightforward, redistributing a derived database
 is not.
 
-### B6 — No E2E tests, no component tests
+### B6 — Component tests started, E2E still missing
 
-The domain and the database are well covered. Screens are not tested at all.
-TESTING.md describes both layers; neither exists.
+25 component tests now cover the two screens where being wrong costs the most:
+ScanReview (the confirmation step that encodes the product's safety rules) and
+AuthForm (validation and the busy/disabled states).
 
-Needed: React Native Testing Library coverage of the four states per screen,
-and four Maestro journeys.
+Two things worth knowing before adding more:
+
+- **`render` is async in RNTL 14.** Called synchronously it returns a pending
+  promise with no query methods, effects never flush, and any assertion against
+  an empty result passes. Three tests here did exactly that before it was
+  caught. A test that passes because nothing ran is worse than one that fails.
+- **`toHaveAccessibilityState` was removed** in favour of per-state matchers
+  (`toBeBusy`, `toBeDisabled`, `toBeSelected`).
+
+`jest.env.ts` runs in `setupFiles` to supply placeholder Supabase configuration
+before any module loads. `src/config/env.ts` validates at import time and throws
+when it is missing - right for the app, fatal for a test that imports anything
+in the service layer.
+
+Still needed: the remaining screens, and four Maestro journeys. Maestro needs a
+device or emulator, so the flows can be written here but not run.
 
 ---
 

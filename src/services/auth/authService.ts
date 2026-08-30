@@ -17,17 +17,6 @@ export interface Credentials {
   readonly password: string;
 }
 
-/**
- * Minimum password length.
- *
- * NIST guidance is that length beats composition rules: forcing a symbol and a
- * digit mostly produces "Password1!", which is weaker than a longer passphrase
- * and harder to type on a phone. Supabase enforces its own server-side minimum
- * as well; this is the client-side check so the user finds out before the round
- * trip.
- */
-export const MIN_PASSWORD_LENGTH = 10;
-
 export const signUp = async ({ email, password }: Credentials): Promise<User | null> => {
   try {
     const { data, error } = await supabase.auth.signUp({
@@ -108,10 +97,3 @@ export const onAuthStateChange = (handler: (session: Session | null) => void): (
   });
   return () => data.subscription.unsubscribe();
 };
-
-/**
- * Whether a password is long enough to submit. Deliberately not a strength
- * meter: those mostly teach people to append "1!" to a weak password.
- */
-export const isPasswordAcceptable = (password: string): boolean =>
-  password.length >= MIN_PASSWORD_LENGTH;
