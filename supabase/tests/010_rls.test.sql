@@ -118,8 +118,15 @@ select is((select count(*) from public.weight_logs)::int, 1,
 select is((select count(*) from public.ai_scans)::int, 1,
   'A sees only their own ai_scans');
 
-select is((select count(*) from public.foods)::int, 2,
-  'A sees public foods plus their own private food, not B''s');
+-- Membership, not a global count: the seed adds public foods, so a hard-coded
+-- total is a test that breaks every time the corpus grows without telling us
+-- anything about isolation.
+select is((select count(*) from public.foods where created_by = :'user_a'::uuid)::int, 1,
+  'A sees their own private food');
+
+select is((select count(*) from public.foods
+            where id = 'aaaaaaaa-0000-0000-0000-000000000001')::int, 1,
+  'A sees a public food');
 
 select is((select count(*) from public.foods where created_by = :'user_b'::uuid)::int, 0,
   'A cannot read B''s private food');

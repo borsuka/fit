@@ -115,6 +115,19 @@ const bg: Translations = {
     finish: 'Започни',
   },
 
+  portion: {
+    quantity: 'Количество',
+    amount: 'Количество',
+    grams: 'грамове',
+    enterAmount: 'Въведи количество, по-голямо от нула.',
+    searchPlaceholder: 'Търси храна',
+    recent: 'Скорошни',
+    noResults: 'Няма съвпадения. Опитай с друга дума.',
+    typeToSearch: 'Въведи поне две букви.',
+    addTo: 'Добави към {{meal}}',
+    added: 'Добавено',
+  },
+
   validation: {
     age_below_minimum: 'Трябва да си на поне 18 години.',
     age_above_maximum: 'Въведи валидна възраст.',

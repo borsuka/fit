@@ -115,6 +115,19 @@ const en = {
     finish: 'Start tracking',
   },
 
+  portion: {
+    quantity: 'Quantity',
+    amount: 'Amount',
+    grams: 'grams',
+    enterAmount: 'Enter an amount greater than zero.',
+    searchPlaceholder: 'Search foods',
+    recent: 'Recent',
+    noResults: 'No foods matched. Try a different word.',
+    typeToSearch: 'Type at least two letters to search.',
+    addTo: 'Add to {{meal}}',
+    added: 'Added',
+  },
+
   validation: {
     age_below_minimum: 'You must be at least 18 to use this app.',
     age_above_maximum: 'Please enter a valid age.',

@@ -1853,6 +1853,22 @@ export type Database = {
       };
     };
     Functions: {
+      search_foods: {
+        Args: { p_limit?: number; p_query: string };
+        Returns: {
+          brand: string;
+          carbs_100g: number;
+          data_quality: number;
+          fat_100g: number;
+          fiber_100g: number;
+          id: string;
+          kcal_100g: number;
+          name: string;
+          protein_100g: number;
+          score: number;
+          source: Database['public']['Enums']['food_source'];
+        }[];
+      };
       set_active_goal: {
         Args: {
           p_activity: Database['public']['Enums']['activity_level'];
