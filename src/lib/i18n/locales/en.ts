@@ -188,6 +188,37 @@ const en = {
     advice_deload: 'Stalled for a while — drop to {{weight}} kg and build back up.',
   },
 
+  progress: {
+    title: 'Progress',
+    todayWeight: "Today's weight",
+    current: 'Current weight',
+    trend: 'Trend',
+    smoothed: '7-day average',
+    noData: 'Log your weight to start tracking progress.',
+    rate: '{{rate}} kg per week over {{days}} days',
+    needMoreData: 'Keep logging — a weekly rate needs about {{days}} days to mean anything.',
+    chartLabel: 'Weight from {{from}} to {{to}} kilograms over {{days}} days',
+  },
+
+  profile: {
+    title: 'Profile',
+    account: 'Account',
+    noName: 'No name set',
+    currentGoal: 'Current goal',
+    language: 'Language',
+    yourData: 'Your data',
+    dataBody:
+      'You can take your data with you or remove it entirely. Deletion removes your meals, weights, workouts and photos, and cannot be undone.',
+    exportData: 'Export my data',
+    exportQueued: "Requested. We'll email you when it's ready.",
+    deleteAccount: 'Delete my account',
+    deleteTitle: 'Delete your account?',
+    deleteBody:
+      'This removes your meals, weights, workouts and photos permanently. This cannot be undone.',
+    deleteConfirm: 'Delete everything',
+    signOut: 'Sign out',
+  },
+
   validation: {
     age_below_minimum: 'You must be at least 18 to use this app.',
     age_above_maximum: 'Please enter a valid age.',
