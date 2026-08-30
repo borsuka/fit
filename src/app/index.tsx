@@ -1,17 +1,26 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Card, Text, useTheme } from '@/ui';
+
 /**
- * Placeholder shell. Phase 2 delivers the database, RLS and project
- * scaffolding; the real Home screen arrives in Phase 3 together with the
- * nutrition engine that supplies its numbers.
+ * Placeholder shell. Phase 3 delivers auth, onboarding and the diary; this
+ * screen exists so the design system is exercised rather than sitting unused.
  */
 export default function HomeScreen() {
+  const theme = useTheme();
+
   return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.container}>
-        <Text style={styles.title}>fit</Text>
-        <Text style={styles.subtitle}>Phase 2 — schema and scaffolding in place.</Text>
+    <SafeAreaView style={[styles.safe, { backgroundColor: theme.colors.background }]}>
+      <View style={[styles.container, { padding: theme.spacing.lg, gap: theme.spacing.lg }]}>
+        <Text variant="display">fit</Text>
+        <Card>
+          <Text variant="heading">Nutrition engine ready</Text>
+          <Text variant="body" tone="muted" style={{ marginTop: theme.spacing.sm }}>
+            Targets, safety rails and diary totals are implemented and tested. Auth and onboarding
+            are next.
+          </Text>
+        </Card>
       </View>
     </SafeAreaView>
   );
@@ -19,7 +28,5 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  container: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
-  title: { fontSize: 34, fontWeight: '700' },
-  subtitle: { fontSize: 15, opacity: 0.6 },
+  container: { flex: 1, justifyContent: 'center' },
 });
