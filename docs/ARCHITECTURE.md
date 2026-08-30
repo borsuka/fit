@@ -1,6 +1,7 @@
 # Architecture
 
-**Status:** Proposed (Phase 1). Not yet implemented.
+**Status:** Implemented through Phase 7. Deviations from the original proposal
+are recorded in section 16.
 **Last updated:** 2026-08-30
 
 ---
@@ -561,3 +562,41 @@ the decision open.
 Supabase EU/Frankfurt; English and Bulgarian at launch; RevenueCat; Jest; Maestro; Expo
 managed workflow with development builds, since native modules such as MMKV and
 RevenueCat rule out Expo Go.
+
+---
+
+## 16. Where reality differed from the plan
+
+Recorded because a design document that quietly matches whatever got built is
+not worth reading.
+
+**Routes live at `src/app`, not the repository root.** The Expo SDK 57 template
+puts them there. Following the framework beat fighting it.
+
+**`shared/ai-contracts` has no dependencies, not even zod.** The plan assumed one
+schema definition imported by both runtimes with zod resolved through an import
+map. The Supabase edge runtime does not apply that map to a file outside
+`supabase/functions/`, and Metro rejects the explicit `.ts` extension Deno needs
+for a sibling import. Both verified from the actual boot error. The validation is
+hand-written and the 27 tests carried over unchanged, because they assert
+behaviour rather than the library.
+
+**Edge functions use fully-qualified `npm:` specifiers.** The `import_map`
+setting in `config.toml` was tried and never reached the worker. It was removed
+rather than left in: configuration that does nothing reads as a working mechanism
+nobody should touch.
+
+**Two additional RPCs were needed for atomicity.** `set_active_goal` and
+`consume_ai_quota` both exist because a check followed by a write is two
+statements, and supabase-js cannot wrap two calls in a transaction. In the goal
+case the gap leaves a user with no active goal; in the quota case two concurrent
+scans both see the last free slot. The database does both in one statement.
+
+**The weight trend uses a regression, not smoothed endpoints.** A centred moving
+average is truncated at both ends, which pulls the endpoints inward and
+understated the trend by 11% on a month of daily readings. Found by a test whose
+expectation was computed by hand rather than from a run.
+
+**Component and E2E tests were specified and not written.** TESTING.md describes
+both layers. Neither exists. That is a gap, not a change of plan - see
+PRODUCTION.md B6.

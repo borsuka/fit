@@ -37,6 +37,25 @@ select is(
   'every UPDATE/ALL policy in public has a WITH CHECK clause');
 
 -- ---------------------------------------------------------------------------
+-- 2b. Every view in public must be security_invoker.
+--
+--     A view without it runs as its OWNER, and RLS on the underlying tables is
+--     bypassed entirely - one unmarked view is a hole straight through every
+--     policy in the schema. Generic on purpose: this fails on the commit that
+--     adds an unmarked view, not six months later.
+-- ---------------------------------------------------------------------------
+
+select is(
+  (select count(*)::int
+     from pg_class c
+    where c.relnamespace = 'public'::regnamespace
+      and c.relkind = 'v'
+      and not coalesce(
+        array_to_string(c.reloptions, ',') like '%security_invoker=true%', false)),
+  0,
+  'every view in public is security_invoker');
+
+-- ---------------------------------------------------------------------------
 -- 3. Age validation is enforced by the database, not just the client.
 -- ---------------------------------------------------------------------------
 

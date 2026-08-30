@@ -2,8 +2,11 @@
 
 Fitness and nutrition tracking with AI meal photo analysis. Expo + Supabase.
 
-> **Status: Phase 2.** Database schema, RLS and project scaffolding are in place.
-> Features start in Phase 3. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+> **Status: feature-complete through Phase 7, not shippable.** Auth, onboarding,
+> diary, food search, AI scanning, meal planning, workouts and progress all work
+> end to end locally. Six real blockers remain - no AI vendor decided, GDPR jobs
+> unwritten, no subscription system - and they are listed with the reasons in
+> [docs/PRODUCTION.md](docs/PRODUCTION.md). Start there before planning a launch.
 
 ---
 
@@ -52,6 +55,7 @@ npm start
 | `npm run db:reset` | rebuild the local database from migrations |
 | `npm run db:test` | pgTAP suite — **RLS isolation lives here** |
 | `npm run db:types` | regenerate `database.types.ts` from the live schema |
+| `npm run db:verify:local` | database smoke check without the full Supabase stack |
 
 ## Layout
 
@@ -60,8 +64,11 @@ src/app/        expo-router routes — thin
 src/features/   screens, feature components, react-query hooks
 src/services/   I/O boundary: Supabase, edge functions, mapping
 src/domain/     PURE business logic. No I/O, no React. Where correctness lives.
-supabase/       migrations, edge functions, pgTAP tests
-docs/           architecture and database design
+shared/         imported by BOTH the app and the Deno edge runtime.
+                Dependency-free by necessity — see docs/PRODUCTION.md section 6.
+supabase/       migrations, edge functions, seeds, pgTAP tests
+scripts/        local database verification harness
+docs/           architecture, database, security, testing, AI, production
 ```
 
 Dependencies point downward only, enforced by ESLint zones and dependency-cruiser in CI.
@@ -70,8 +77,12 @@ A layering rule that CI does not check is a comment, not an architecture.
 ## Before you commit
 
 ```bash
-npm run typecheck && npm run lint && npm test && npm run db:test
+npm run typecheck && npm run lint && npm run depcruise && npm test
+npm run db:reset && npm run db:test
 ```
+
+The pgTAP suite assumes a clean database, so reset first. Current state: 269
+Jest tests, 97 pgTAP assertions, all green.
 
 Adding a table means adding its RLS policies **and** its pgTAP test in the same change.
 `020_schema_invariants.test.sql` fails the build if any table in `public` lacks RLS, or if
