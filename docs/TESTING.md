@@ -156,6 +156,36 @@ case that a plain review pass tends to miss: **user A cannot reassign their own 
 The first two are generic: they cover tables that do not exist yet. That is the point —
 they fail on the commit that adds an unprotected table, not six months later.
 
+### A Postgres asymmetry worth knowing
+
+When RLS is enabled and **no policy exists** for a command, the two cases behave
+differently:
+
+| Command | With no matching policy |
+|---|---|
+| `INSERT` | raises `42501` — its `WITH CHECK` cannot pass |
+| `UPDATE`, `DELETE` | match **zero rows** and report success, no error |
+
+`subscriptions` deliberately has only a `SELECT` policy, so "user grants themselves
+premium" fails silently rather than loudly. A test written as `throws_ok` for that case
+fails — and would have been misleading in the other direction too, passing for an
+unrelated reason if someone later added a permissive `UPDATE` policy that happened to
+error. The assertion is a row count plus a check that the stored value did not change,
+because "zero rows affected" and "the value is unchanged" are different claims.
+
+This was found by running the suite, not by reading it. It is the argument for executing
+tests against a real engine before believing them.
+
+### Local harness without the full stack
+
+`_local_shim.sql` plus `_local_verify.sql` reproduce the same assertions in plain SQL
+against a stock `postgres` image, for when the Supabase stack is unavailable — the shim
+recreates only `auth`, `storage`, the three roles and `auth.uid()`.
+
+It is a smoke check, not parity: GoTrue, Storage and the real grant matrix are not
+reproduced, so `supabase test db` remains the authority. Both files are prefixed `_` and
+are never applied to a real database.
+
 ---
 
 ## 7. End-to-end (Maestro)

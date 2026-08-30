@@ -161,11 +161,20 @@ select throws_ok(
 
 -- --- privilege escalation --------------------------------------------------
 
-select throws_ok(
-  format('update public.subscriptions set tier = %L where user_id = %L', 'premium', :'user_a'),
-  '42501',
-  null,
-  'A cannot grant themselves premium');
+-- Postgres RLS is asymmetric here: with no policy for a command, INSERT raises
+-- 42501 (its WITH CHECK cannot pass) while UPDATE and DELETE match zero rows
+-- and report success. So this is a row-count assertion, not a throws_ok - and
+-- we confirm the stored value too, because "zero rows affected" and "the value
+-- did not change" are different claims.
+select is((select count(*) from (
+    update public.subscriptions set tier = 'premium'
+    where user_id = :'user_a'::uuid returning 1) u)::int, 0,
+  'A''s attempt to grant themselves premium affects zero rows');
+
+select is(
+  (select tier::text from public.subscriptions where user_id = :'user_a'::uuid),
+  'free',
+  'A''s subscription tier is unchanged after the attempt');
 
 select throws_ok(
   format('insert into public.subscriptions (user_id, tier) values (%L, %L)', :'user_a', 'premium'),
