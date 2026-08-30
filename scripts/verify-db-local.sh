@@ -41,7 +41,7 @@ psql_file() {
 }
 
 echo "==> shim"
-psql_file supabase/tests/_local_shim.sql
+psql_file scripts/db-local/shim.sql
 
 echo "==> migrations"
 for f in supabase/migrations/*.sql; do
@@ -54,7 +54,7 @@ echo "==> seed"
 psql_file supabase/seed.sql
 
 echo "==> assertions"
-docker cp supabase/tests/_local_verify.sql "$CONTAINER:/tmp/verify.sql" >/dev/null
+docker cp scripts/db-local/verify.sql "$CONTAINER:/tmp/verify.sql" >/dev/null
 docker exec "$CONTAINER" psql -U postgres -d "$DB" -v ON_ERROR_STOP=1 -q -f /tmp/verify.sql
 
 echo

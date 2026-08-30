@@ -178,9 +178,14 @@ tests against a real engine before believing them.
 
 ### Local harness without the full stack
 
-`_local_shim.sql` plus `_local_verify.sql` reproduce the same assertions in plain SQL
+`scripts/db-local/shim.sql` plus `verify.sql` reproduce the same assertions in plain SQL
 against a stock `postgres` image, for when the Supabase stack is unavailable — the shim
 recreates only `auth`, `storage`, the three roles and `auth.uid()`.
+
+They live under `scripts/`, **not** under `supabase/tests/`: `supabase test db` runs every
+`.sql` file in that directory, so a shim that creates `auth.users` gets picked up and fails
+with a permission error against the real stack. An underscore prefix is not an exclusion
+rule.
 
 ```bash
 npm run db:verify:local
@@ -191,8 +196,12 @@ the seed, then runs 36 behavioural assertions and removes the container. Non-zer
 anything fails.
 
 It is a smoke check, not parity: GoTrue, Storage and the real grant matrix are not
-reproduced, so `supabase test db` remains the authority. Both SQL files are prefixed `_`
-and are never applied to a real database.
+reproduced, so `supabase test db` remains the authority. Neither file is ever applied to a
+real database.
+
+Confirmed once both were runnable: the types generated from the shim container are
+byte-identical to those generated from the real stack, because the `public` schema comes
+entirely from the same migrations.
 
 ---
 
@@ -226,12 +235,21 @@ breaks `tsc`, not production.
 
 ## 9. Current state
 
-Honest status as of Phase 2:
+- **pgTAP: 56 tests, passing against the real local Supabase stack** (`npm run db:test`)
+- **Jest: 133 tests, passing.** `src/domain/nutrition` is at 100% statements, functions
+  and lines, 98.3% branches — above the 95/90 gate. The two uncovered branches are
+  unreachable defensive guards that protect against a future constant change.
+- Local harness: 46 assertions (`npm run db:verify:local`)
+- Maestro: not yet set up; arrives with the first complete user journey
 
-- pgTAP suite: **written**, covering RLS isolation and schema invariants
-- Jest: **configured**, no tests yet — `src/domain` is empty until Phase 3, so `npm test`
-  runs with `--passWithNoTests` in CI
-- Maestro: not yet set up; arrives with Phase 3 when there are journeys to test
+### Two bugs the suites found in themselves
 
-The coverage gate on `src/domain/nutrition` is already in `jest.config.js` and will apply
-from the first file written there.
+**A data-modifying statement cannot sit in a sub-SELECT.** Postgres allows it only in a
+CTE. Written as `select count(*) from (update ... returning 1)`, the RLS test was a syntax
+error rather than a failing assertion — a far quieter way for a security test to stop
+running, and it only surfaced when the suite finally ran against the real stack.
+
+**A CI check that can only fail is worse than no check.** The type-sync step compared raw
+generator output against the committed file, which is prettier-formatted, so it would have
+failed on quote style every single run and trained everyone to ignore it. It now runs the
+same `npm run db:types` a developer would and checks `git diff --exit-code`.

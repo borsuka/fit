@@ -67,11 +67,16 @@ jobs:
 
       # Fails if the committed migrations do not reproduce the schema the
       # generated types were built from.
+      #
+      # Runs the same npm script a developer would, rather than a hand-rolled
+      # `gen types | diff`. The script formats its output with prettier, and a
+      # raw-vs-formatted comparison fails on quote style alone - a check that
+      # can only fail is worse than no check, because it trains people to
+      # ignore it.
       - name: Types are in sync with the schema
         run: |
-          npx supabase gen types typescript --local > /tmp/database.types.ts
-          if ! diff -q /tmp/database.types.ts src/services/supabase/database.types.ts; then
+          npm run db:types
+          if ! git diff --exit-code -- src/services/supabase/database.types.ts; then
             echo "::error::database.types.ts is stale. Run: npm run db:types"
-            diff /tmp/database.types.ts src/services/supabase/database.types.ts || true
             exit 1
           fi

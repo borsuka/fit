@@ -3,6 +3,11 @@
 -- ============================================================================
 -- NOT part of the application, NOT applied to any real database.
 --
+-- Lives under scripts/, NOT under supabase/tests/: `supabase test db` runs
+-- every .sql file in that directory, and pointing pg_prove at a shim that
+-- tries to create auth.users against the real stack fails with a permission
+-- error. An underscore prefix is not an exclusion rule.
+--
 -- Purpose: apply the migrations against a stock `postgres` Docker image to
 -- catch syntax errors, bad references and broken constraints without waiting
 -- on the full Supabase stack. It recreates only the surface the migrations

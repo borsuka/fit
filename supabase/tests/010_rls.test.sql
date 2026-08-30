@@ -126,14 +126,23 @@ select is((select count(*) from public.foods where created_by = :'user_b'::uuid)
 
 -- --- writes against B's data -----------------------------------------------
 
-select is((select count(*) from (
-    update public.meals set note = 'hacked'
-    where id = 'bbbbbbbb-0000-0000-0000-000000000002' returning 1) u)::int, 0,
+-- A data-modifying statement cannot sit in a sub-SELECT; Postgres only allows
+-- it in a CTE. Written the other way this is a syntax error, not a failing
+-- assertion, which is a far quieter way for a security test to stop running.
+with attempted as (
+  update public.meals set note = 'hacked'
+  where id = 'bbbbbbbb-0000-0000-0000-000000000002'
+  returning 1
+)
+select is((select count(*) from attempted)::int, 0,
   'A''s update of B''s meal affects zero rows');
 
-select is((select count(*) from (
-    delete from public.meals
-    where id = 'bbbbbbbb-0000-0000-0000-000000000002' returning 1) d)::int, 0,
+with attempted as (
+  delete from public.meals
+  where id = 'bbbbbbbb-0000-0000-0000-000000000002'
+  returning 1
+)
+select is((select count(*) from attempted)::int, 0,
   'A''s delete of B''s meal affects zero rows');
 
 select throws_ok(
@@ -166,9 +175,12 @@ select throws_ok(
 -- and report success. So this is a row-count assertion, not a throws_ok - and
 -- we confirm the stored value too, because "zero rows affected" and "the value
 -- did not change" are different claims.
-select is((select count(*) from (
-    update public.subscriptions set tier = 'premium'
-    where user_id = :'user_a'::uuid returning 1) u)::int, 0,
+with attempted as (
+  update public.subscriptions set tier = 'premium'
+  where user_id = :'user_a'::uuid
+  returning 1
+)
+select is((select count(*) from attempted)::int, 0,
   'A''s attempt to grant themselves premium affects zero rows');
 
 select is(
@@ -208,6 +220,49 @@ select throws_ok(
   null,
   'A cannot attach a meal_item to B''s meal');
 
+-- --- set_active_goal RPC ----------------------------------------------------
+-- SECURITY INVOKER, so RLS must still decide whose goal gets written. It reads
+-- the user id from auth.uid() rather than an argument, so there is no
+-- parameter through which one user could target another's row.
+
+select lives_ok(
+  $q$select public.set_active_goal('lose','moderate',80,2200,160,205,66,'nutrition-engine-v1')$q$,
+  'A can set their own goal through the RPC');
+
+select is((select count(*) from public.goals where is_active)::int, 1,
+  'A has exactly one active goal');
+
+-- Must replace, not collide with the partial unique index.
+select lives_ok(
+  $q$select public.set_active_goal('maintain','light',80,2759,128,300,82,'nutrition-engine-v1')$q$,
+  'A can replace their goal');
+
+select is((select count(*) from public.goals where is_active)::int, 1,
+  'replacing a goal leaves exactly one active');
+
+select is(
+  (select goal::text from public.goals where is_active),
+  'maintain',
+  'the surviving active goal is the new one');
+
+select is((select count(*) from public.goals)::int, 2,
+  'the previous goal is kept, deactivated - history stays interpretable');
+
+-- --- storage isolation ------------------------------------------------------
+-- Photos are personal data; the policy keys off the first path segment.
+
+select throws_ok(
+  format($q$insert into storage.objects (bucket_id, name) values ('food-photos', %L)$q$,
+         :'user_b' || '/stolen.jpg'),
+  '42501',
+  null,
+  'A cannot write into B''s photo folder');
+
+select lives_ok(
+  format($q$insert into storage.objects (bucket_id, name) values ('food-photos', %L)$q$,
+         :'user_a' || '/mine.jpg'),
+  'A can write into their own photo folder');
+
 -- ===========================================================================
 -- Acting as user B
 -- ===========================================================================
@@ -223,6 +278,16 @@ select is((select count(*) from public.meals where user_id = :'user_a'::uuid)::i
 select is((select count(*) from public.subscriptions)::int, 0,
   'B sees no subscription row (they have none)');
 
+select is((select count(*) from public.goals)::int, 0,
+  'B cannot see A''s goals at all');
+
+select lives_ok(
+  $q$select public.set_active_goal('gain','very',90,3000,160,350,90,'nutrition-engine-v1')$q$,
+  'B can set their own goal');
+
+select is((select count(*) from public.goals where is_active)::int, 1,
+  'B''s active goal does not collide with A''s');
+
 -- ===========================================================================
 -- Anonymous
 -- ===========================================================================
@@ -235,6 +300,7 @@ select is((select count(*) from public.meal_items)::int,   0, 'anon reads no mea
 select is((select count(*) from public.weight_logs)::int,  0, 'anon reads no weight_logs');
 select is((select count(*) from public.ai_scans)::int,     0, 'anon reads no ai_scans');
 select is((select count(*) from public.foods)::int,        0, 'anon reads no foods');
+select is((select count(*) from public.goals)::int,        0, 'anon reads no goals');
 
 select * from finish();
 rollback;
