@@ -152,6 +152,18 @@ const bg: Translations = {
     nothingSelected: 'Още нищо не е избрано.',
   },
 
+  mealplan: {
+    title: 'Хранителен план',
+    body: 'Съставен от целите ти и рецептите, които отговарят на ограниченията.',
+    generate: 'Направи план',
+    regenerate: 'Направи друг',
+    empty: 'Още няма план.',
+    saved: 'Планът е запазен.',
+    planName: 'Дневен план',
+    dayTotal: 'Общо за деня',
+    versusTarget: '{{diff}} kcal спрямо цел от {{target}} kcal',
+  },
+
   validation: {
     age_below_minimum: 'Трябва да си на поне 18 години.',
     age_above_maximum: 'Въведи валидна възраст.',

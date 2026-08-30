@@ -922,6 +922,13 @@ export type Database = {
             foreignKeyName: 'meal_items_recipe_id_fkey';
             columns: ['recipe_id'];
             isOneToOne: false;
+            referencedRelation: 'meal_plan_candidates';
+            referencedColumns: ['recipe_id'];
+          },
+          {
+            foreignKeyName: 'meal_items_recipe_id_fkey';
+            columns: ['recipe_id'];
+            isOneToOne: false;
             referencedRelation: 'recipe_nutrition';
             referencedColumns: ['recipe_id'];
           },
@@ -1024,6 +1031,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: 'meal_plan_days';
             referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'meal_plan_meals_recipe_id_fkey';
+            columns: ['recipe_id'];
+            isOneToOne: false;
+            referencedRelation: 'meal_plan_candidates';
+            referencedColumns: ['recipe_id'];
           },
           {
             foreignKeyName: 'meal_plan_meals_recipe_id_fkey';
@@ -1287,6 +1301,13 @@ export type Database = {
             foreignKeyName: 'recipe_ingredients_recipe_id_fkey';
             columns: ['recipe_id'];
             isOneToOne: false;
+            referencedRelation: 'meal_plan_candidates';
+            referencedColumns: ['recipe_id'];
+          },
+          {
+            foreignKeyName: 'recipe_ingredients_recipe_id_fkey';
+            columns: ['recipe_id'];
+            isOneToOne: false;
             referencedRelation: 'recipe_nutrition';
             referencedColumns: ['recipe_id'];
           },
@@ -1307,6 +1328,7 @@ export type Database = {
           image_path: string | null;
           instructions: string | null;
           is_public: boolean;
+          meal_slots: Database['public']['Enums']['meal_type'][];
           name: string;
           prep_minutes: number | null;
           servings: number;
@@ -1320,6 +1342,7 @@ export type Database = {
           image_path?: string | null;
           instructions?: string | null;
           is_public?: boolean;
+          meal_slots?: Database['public']['Enums']['meal_type'][];
           name: string;
           prep_minutes?: number | null;
           servings: number;
@@ -1333,6 +1356,7 @@ export type Database = {
           image_path?: string | null;
           instructions?: string | null;
           is_public?: boolean;
+          meal_slots?: Database['public']['Enums']['meal_type'][];
           name?: string;
           prep_minutes?: number | null;
           servings?: number;
@@ -1835,6 +1859,31 @@ export type Database = {
       };
     };
     Views: {
+      meal_plan_candidates: {
+        Row: {
+          allergen_ids: number[] | null;
+          carbs_g: number | null;
+          fat_g: number | null;
+          food_ids: string[] | null;
+          is_public: boolean | null;
+          kcal: number | null;
+          meal_slots: Database['public']['Enums']['meal_type'][] | null;
+          name: string | null;
+          prep_minutes: number | null;
+          protein_g: number | null;
+          recipe_id: string | null;
+          user_id: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'recipes_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       recipe_nutrition: {
         Row: {
           carbs_g_per_serving: number | null;

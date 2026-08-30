@@ -152,6 +152,18 @@ const en = {
     nothingSelected: 'Nothing selected yet.',
   },
 
+  mealplan: {
+    title: 'Meal plan',
+    body: 'Built from your targets and the recipes that fit your restrictions.',
+    generate: 'Build a plan',
+    regenerate: 'Build another',
+    empty: 'No plan yet.',
+    saved: 'Plan saved.',
+    planName: 'Daily plan',
+    dayTotal: 'Day total',
+    versusTarget: '{{diff}} kcal against a {{target}} kcal target',
+  },
+
   validation: {
     age_below_minimum: 'You must be at least 18 to use this app.',
     age_above_maximum: 'Please enter a valid age.',
