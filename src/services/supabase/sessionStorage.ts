@@ -1,25 +1,19 @@
 import * as SecureStore from 'expo-secure-store';
 
 /**
- * Session storage adapter for Supabase Auth, backed by the device keychain.
+ * Session storage adapter for Supabase Auth.
  *
- * Why not AsyncStorage, which most examples use: it is unencrypted plain text
- * on disk. The value it would hold is a refresh token — the credential that
- * mints access tokens for this account indefinitely. On a rooted or jailbroken
- * device, or through a backup extraction, that is a full account takeover from
- * a file anyone can read.
+ * The device keychain, via expo-secure-store. The web build gets
+ * sessionStorage.web.ts instead - Metro resolves that ahead of this file.
  *
- * The complication is size. SecureStore warns above 2048 bytes per value, and
- * a Supabase session (access token, refresh token, user object with metadata)
- * frequently exceeds it. So values are chunked across numbered keys, with a
- * small header recording the chunk count.
- *
- * Layout for key K:
- *   K            -> the chunk count, as a decimal string
- *   K.0 .. K.n-1 -> the payload slices
+ * The alternative most examples reach for is AsyncStorage, which is
+ * unencrypted plain text on disk. The value it holds is a refresh token: the
+ * credential that mints access tokens for this account indefinitely. On a
+ * rooted or jailbroken device, or through a backup extraction, that is a full
+ * account takeover from a file anyone can read.
  */
 
-const CHUNK_SIZE = 1800; // headroom under the 2048-byte warning threshold
+const CHUNK_SIZE = 1800; // headroom under SecureStore's 2048-byte warning
 
 const chunkKey = (key: string, index: number): string => `${key}.${index}`;
 
@@ -32,18 +26,22 @@ const readCount = async (key: string): Promise<number | null> => {
 
 /**
  * Removes every chunk belonging to a key. Called before each write as well as
- * on removal: without it, shrinking a session from four chunks to two would
- * leave the stale third and fourth behind, and the next read of a longer
- * session would splice them back in and produce unparseable JSON.
+ * on removal: without it, shrinking a session from four chunks to two leaves
+ * the stale third and fourth behind, and the next read of a longer session
+ * splices them back in and produces unparseable JSON.
  */
 const clearChunks = async (key: string, count: number): Promise<void> => {
-  const deletions: Promise<void>[] = [];
-  for (let i = 0; i < count; i += 1) {
-    deletions.push(SecureStore.deleteItemAsync(chunkKey(key, i)));
-  }
-  await Promise.all(deletions);
+  await Promise.all(
+    Array.from({ length: count }, (_, i) => SecureStore.deleteItemAsync(chunkKey(key, i))),
+  );
 };
 
+/**
+ * Chunked, because SecureStore warns above 2048 bytes per value and a Supabase
+ * session (access token, refresh token, user object with metadata) frequently
+ * exceeds it. Values are split across numbered keys with a header recording
+ * the count.
+ */
 export const secureSessionStorage = {
   async getItem(key: string): Promise<string | null> {
     try {
@@ -88,9 +86,9 @@ export const secureSessionStorage = {
       // holding a half-written session that fails in a stranger way.
       await SecureStore.setItemAsync(key, String(chunks.length));
     } catch {
-      // Swallowed deliberately. A failed session persist means the user must
-      // sign in again next launch, which is an inconvenience; an exception
-      // here would surface as an unhandled rejection during auth refresh.
+      // A failed persist means signing in again next launch - an inconvenience.
+      // An exception here would surface as an unhandled rejection during token
+      // refresh.
     }
   },
 

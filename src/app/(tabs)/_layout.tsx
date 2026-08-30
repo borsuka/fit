@@ -1,9 +1,23 @@
-import { Tabs } from 'expo-router';
+import { Redirect, Tabs } from 'expo-router';
 
+import { useAuthGate } from '@/features/auth/useAuthGate';
 import { useTheme } from '@/ui';
 
+/**
+ * Guarded during RENDER, not in an effect.
+ *
+ * An effect runs after the render that scheduled it, so a guard written that
+ * way lets the protected screen mount once before navigating away - and
+ * useRequireUserId throws on that first pass. Returning <Redirect/> means the
+ * screen never renders at all.
+ */
 export default function TabsLayout() {
   const theme = useTheme();
+  const { isResolving, isSignedIn, isOnboarded } = useAuthGate();
+
+  if (isResolving) return null;
+  if (!isSignedIn) return <Redirect href="/sign-in" />;
+  if (!isOnboarded) return <Redirect href="/onboarding" />;
 
   return (
     <Tabs

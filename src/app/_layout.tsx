@@ -4,15 +4,13 @@ import {
   DefaultTheme,
   Stack,
   ThemeProvider as NavigationThemeProvider,
-  useRouter,
-  useSegments,
 } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { ActivityIndicator, useColorScheme, View } from 'react-native';
 
-import { SessionProvider, useSession } from '@/features/auth/SessionProvider';
-import { useProfile } from '@/features/profile/hooks';
+import { SessionProvider } from '@/features/auth/SessionProvider';
+import { useAuthGate } from '@/features/auth/useAuthGate';
 import { initI18n } from '@/lib/i18n';
 import { createQueryClient } from '@/lib/queryClient';
 import { ThemeProvider, useTheme } from '@/ui';
@@ -20,48 +18,16 @@ import { ThemeProvider, useTheme } from '@/ui';
 initI18n();
 
 /**
- * Decides which route group the user belongs in.
+ * Holds the navigator back until the session and profile have settled.
  *
- * Three states, and the order matters:
- *   no session                        -> (auth)
- *   session but onboarding unfinished -> (onboarding)
- *   otherwise                         -> (tabs)
- *
- * Nothing is decided while the session or profile is still loading. Guessing
- * during that window is what makes a returning user watch a sign-in screen
- * flash before their own data appears.
+ * The group layouts under (auth), (onboarding) and (tabs) each decide whether
+ * they may render - during render, via <Redirect/>. This only prevents the
+ * flash: without it a returning user watches a sign-in screen appear before
+ * their own data does.
  */
-function RouteGuard() {
-  const { userId, isLoading: sessionLoading } = useSession();
-  const profileQuery = useProfile(userId);
-  const segments = useSegments();
-  const router = useRouter();
+function Root() {
   const theme = useTheme();
-
-  // A failed profile fetch must not strand a signed-in user on a spinner. They
-  // go to onboarding, where the error is visible and recoverable, rather than
-  // staring at nothing.
-  const profileSettled = userId === null || profileQuery.isSuccess || profileQuery.isError;
-  const isResolving = sessionLoading || !profileSettled;
-
-  const target = useMemo<'(auth)' | '(onboarding)' | '(tabs)' | null>(() => {
-    if (isResolving) return null;
-    if (userId === null) return '(auth)';
-    if (profileQuery.data?.onboarded_at == null) return '(onboarding)';
-    return '(tabs)';
-  }, [isResolving, userId, profileQuery.data]);
-
-  const current = segments[0];
-
-  useEffect(() => {
-    if (target === null || current === target) return;
-
-    // replace, not push: a back gesture out of the app shell into a stale
-    // sign-in screen is not a navigation anyone asked for.
-    router.replace(
-      target === '(auth)' ? '/sign-in' : target === '(onboarding)' ? '/onboarding' : '/',
-    );
-  }, [target, current, router]);
+  const { isResolving } = useAuthGate();
 
   if (isResolving) {
     return (
@@ -96,7 +62,7 @@ export default function RootLayout() {
             it owns, ours styles everything we draw. Both follow the OS. */}
         <NavigationThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
           <ThemeProvider>
-            <RouteGuard />
+            <Root />
             <StatusBar style="auto" />
           </ThemeProvider>
         </NavigationThemeProvider>

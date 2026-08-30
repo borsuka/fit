@@ -25,23 +25,38 @@ structurally impossible rather than merely discouraged.
 |---|---|
 | Node | 20+ (developed on 24.14) |
 | Docker | required for local Supabase |
-| Expo Go | **not supported** — native modules need a development build |
+| Expo Go | works — every native module used is bundled in Expo Go |
 
 ## Setup
 
 ```bash
 npm install
-cp .env.example .env
-npm run db:start        # starts local Supabase, prints the anon key
+npm run db:start        # starts local Supabase
+npm run db:reset        # applies migrations and seeds from scratch
 ```
 
-Paste the printed anon key and API URL into `.env`, then:
+Then write `.env` from what the stack printed:
 
 ```bash
-npm run db:reset        # applies migrations from scratch
-npm run db:test         # pgTAP: RLS and schema invariants
-npm start
+npx supabase status -o json
 ```
+
+```
+EXPO_PUBLIC_SUPABASE_URL=http://<your-lan-ip>:54321
+EXPO_PUBLIC_SUPABASE_ANON_KEY=<ANON_KEY from the command above>
+EXPO_PUBLIC_APP_ENV=development
+```
+
+Use this machine's LAN address rather than `127.0.0.1`: on a phone running Expo
+Go, localhost means the phone.
+
+```bash
+npm start        # then scan the QR with Expo Go
+npm run web      # or just open it in a browser
+```
+
+Sign up with any email - local Supabase does not send or require confirmation,
+and anything that would have been mailed appears at http://127.0.0.1:54324.
 
 ## Scripts
 
