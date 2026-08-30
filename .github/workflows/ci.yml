@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  app:
+    name: Typecheck, lint, test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Layering rules
+        run: npm run depcruise
+
+      - name: Unit tests
+        run: npm test -- --ci --passWithNoTests
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: test-anon-key
+
+  database:
+    name: Migrations and RLS
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Start Supabase
+        run: npx supabase start
+
+      # Applies every migration from scratch. Catches a migration that only
+      # works against an already-migrated local database.
+      - name: Apply migrations from zero
+        run: npx supabase db reset
+
+      # The gate that matters. Asserts user isolation in both directions, that
+      # no table in public is missing RLS, and that no UPDATE policy is missing
+      # its WITH CHECK clause.
+      - name: RLS and schema invariants
+        run: npx supabase test db
+
+      # Fails if the committed migrations do not reproduce the schema the
+      # generated types were built from.
+      - name: Types are in sync with the schema
+        run: |
+          npx supabase gen types typescript --local > /tmp/database.types.ts
+          if ! diff -q /tmp/database.types.ts src/services/supabase/database.types.ts; then
+            echo "::error::database.types.ts is stale. Run: npm run db:types"
+            diff /tmp/database.types.ts src/services/supabase/database.types.ts || true
+            exit 1
+          fi
