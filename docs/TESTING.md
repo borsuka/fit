@@ -134,8 +134,14 @@ The highest-value tests in the repository, because their failure mode is a data 
 rather than a wrong number.
 
 ```bash
-npm run db:test
+npm run db:reset && npm run db:test
 ```
+
+The suite assumes a clean database. Each file wraps itself in a transaction and
+rolls back, so the files do not interfere with each other - but anything left
+behind by a manual `psql` session outside a transaction collides with the fixture
+UUIDs and the whole file aborts before its first assertion. CI resets first for
+exactly this reason.
 
 `010_rls.test.sql` seeds two users and asserts isolation in both directions, including the
 case that a plain review pass tends to miss: **user A cannot reassign their own row's
@@ -151,7 +157,20 @@ case that a plain review pass tends to miss: **user A cannot reassign their own 
 - `meal_items` references exactly one thing, or is a named quick-add
 - `recipe_nutrition` derives correctly from ingredients
 - one active goal per user; one weight entry per day
+- one meal section per type per day
 - no bucket holding user photos is public
+
+`030_food_search.test.sql` proves the isolation `search_foods` relies on. The
+function is SECURITY INVOKER with no visibility predicate of its own, so the RLS
+policy on `foods` is the single source of truth - which is the right design, and
+exactly why it has to be asserted rather than assumed. Two users with
+identically-named private foods each see only their own.
+
+`040_ai_pipeline.test.sql` covers the quota ledger and scan matching: the
+allowance is per user, per feature and per day; a client can neither call
+`consume_ai_quota` nor reset its own row; matching resolves "chicken breast" to
+the USDA-style name and leaves noise unmatched; and one user cannot match
+another's scan.
 
 The first two are generic: they cover tables that do not exist yet. That is the point —
 they fail on the commit that adds an unprotected table, not six months later.

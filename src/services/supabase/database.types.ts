@@ -1853,6 +1853,32 @@ export type Database = {
       };
     };
     Functions: {
+      consume_ai_quota: {
+        Args: {
+          p_feature: string;
+          p_limit: number;
+          p_usage_date?: string;
+          p_user_id: string;
+        };
+        Returns: boolean;
+      };
+      match_scan_items: {
+        Args: { p_scan_id: string };
+        Returns: {
+          item_id: string;
+          match_score: number;
+          matched_food_id: string;
+        }[];
+      };
+      record_ai_cost: {
+        Args: {
+          p_cost_usd: number;
+          p_feature: string;
+          p_usage_date?: string;
+          p_user_id: string;
+        };
+        Returns: undefined;
+      };
       search_foods: {
         Args: { p_limit?: number; p_query: string };
         Returns: {

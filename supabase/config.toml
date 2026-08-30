@@ -414,3 +414,14 @@ enabled = true
 # declarative_schema_path = "./schemas"
 # JSON string passed through to pg-delta SQL formatting.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":80,\"commaStyle\":\"trailing\"}"
+
+# ---------------------------------------------------------------------------
+# Edge functions
+# ---------------------------------------------------------------------------
+# No import_map here on purpose. It did not reach the worker on this runtime -
+# boot failed naming the bare specifier - so dependencies are declared inline
+# with fully-qualified npm: specifiers instead. Configuration that does nothing
+# is worse than none: it reads as a working mechanism nobody should touch.
+[functions.analyze-meal]
+enabled = true
+verify_jwt = true

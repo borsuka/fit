@@ -6,13 +6,19 @@ module.exports = {
     '^@/(.*)$': '<rootDir>/src/$1',
     '^@shared/(.*)$': '<rootDir>/shared/$1',
   },
-  testMatch: ['<rootDir>/src/**/*.test.ts', '<rootDir>/src/**/*.test.tsx'],
+  testMatch: [
+    '<rootDir>/src/**/*.test.ts',
+    '<rootDir>/src/**/*.test.tsx',
+    '<rootDir>/shared/**/*.test.ts',
+  ],
   collectCoverageFrom: [
     'src/domain/**/*.ts',
     'src/services/**/*.ts',
+    'shared/**/*.ts',
     // Barrels re-export; they have no logic to cover.
     '!src/**/index.ts',
     '!src/**/*.test.ts',
+    '!shared/**/*.test.ts',
     // Generated from the schema, not hand-written.
     '!src/services/supabase/database.types.ts',
   ],
