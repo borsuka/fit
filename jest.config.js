@@ -7,7 +7,13 @@ module.exports = {
     '^@shared/(.*)$': '<rootDir>/shared/$1',
   },
   testMatch: ['<rootDir>/src/**/*.test.ts', '<rootDir>/src/**/*.test.tsx'],
-  collectCoverageFrom: ['src/domain/**/*.ts', 'src/services/**/*.ts'],
+  collectCoverageFrom: [
+    'src/domain/**/*.ts',
+    'src/services/**/*.ts',
+    // Barrels re-export; they have no logic to cover.
+    '!src/**/index.ts',
+    '!src/**/*.test.ts',
+  ],
   // The domain layer is where correctness lives, so it carries a hard gate.
   coverageThreshold: {
     'src/domain/nutrition/': { statements: 95, branches: 90, functions: 95, lines: 95 },
