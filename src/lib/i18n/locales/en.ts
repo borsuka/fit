@@ -128,6 +128,30 @@ const en = {
     added: 'Added',
   },
 
+  scan: {
+    title: 'What did you eat?',
+    takePhoto: 'Take a photo',
+    retake: 'Retake',
+    analyzing: 'Analyzing your meal…',
+    uploading: 'Uploading…',
+    matching: 'Matching foods…',
+    reviewTitle: 'Check before adding',
+    reviewBody: 'Estimates from a photo are rough. Correct anything that looks wrong.',
+    confidence_high: 'Confident',
+    confidence_medium: 'Fairly sure',
+    confidence_low: "We're not completely sure what this is",
+    lowConfidenceHint: 'Tap to correct, or leave it out.',
+    noMatch: "We couldn't find this in the food database",
+    unmatchedHint: 'Search for this food instead',
+    estimateHint: 'Estimated from the photo. Adjust if you know better.',
+    addSelected: 'Add to diary',
+    permissionTitle: 'Camera access needed',
+    permissionBody:
+      'We need the camera to photograph your meal. Nothing is uploaded until you take a photo.',
+    grantPermission: 'Allow camera',
+    nothingSelected: 'Nothing selected yet.',
+  },
+
   validation: {
     age_below_minimum: 'You must be at least 18 to use this app.',
     age_above_maximum: 'Please enter a valid age.',

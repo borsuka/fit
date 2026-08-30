@@ -18,6 +18,14 @@ export default function NutritionTab() {
 
   return (
     <Screen scroll>
+      <Text variant="title">{t('scan.title')}</Text>
+      <Button
+        label={t('scan.takePhoto')}
+        fullWidth
+        size="lg"
+        onPress={() => router.push({ pathname: '/scan', params: { mealType: 'lunch' } })}
+      />
+
       <Text variant="title">{t('common.search')}</Text>
       <View style={{ gap: theme.spacing.md }}>
         {MEAL_TYPES.map((mealType) => (
