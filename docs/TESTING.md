@@ -182,9 +182,17 @@ tests against a real engine before believing them.
 against a stock `postgres` image, for when the Supabase stack is unavailable — the shim
 recreates only `auth`, `storage`, the three roles and `auth.uid()`.
 
+```bash
+npm run db:verify:local
+```
+
+Starts a throwaway `postgres:16-alpine`, applies the shim, every migration in order and
+the seed, then runs 36 behavioural assertions and removes the container. Non-zero exit if
+anything fails.
+
 It is a smoke check, not parity: GoTrue, Storage and the real grant matrix are not
-reproduced, so `supabase test db` remains the authority. Both files are prefixed `_` and
-are never applied to a real database.
+reproduced, so `supabase test db` remains the authority. Both SQL files are prefixed `_`
+and are never applied to a real database.
 
 ---
 
