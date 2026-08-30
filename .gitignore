@@ -51,3 +51,6 @@ supabase/.branches/
 coverage/
 *.log
 .eslintcache
+
+# Edge function secrets, never committed
+supabase/functions/.env

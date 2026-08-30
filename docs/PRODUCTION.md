@@ -1,7 +1,8 @@
 # Production Readiness
 
-**Last updated:** 2026-08-30
-**Status: not shippable.** The blockers below are real, not paperwork.
+**Last updated:** 2026-08-31
+**Status: not shippable.** Four blockers remain; two are closed. They are real
+constraints, not paperwork.
 
 This is an honest ledger, not a victory lap. Everything marked done was
 verified by running it; everything else is listed as what it is.
@@ -12,8 +13,8 @@ verified by running it; everything else is listed as what it is.
 
 | Area | State |
 |---|---|
-| Database schema, 16 migrations | applied from zero against Supabase Postgres 17 |
-| RLS on every table | 97 pgTAP assertions, both directions, real stack |
+| Database schema, 17 migrations | applied from zero against Supabase Postgres 17 |
+| RLS on every table | 125 pgTAP assertions, both directions, real stack |
 | Auth, onboarding, targets | working end to end |
 | Nutrition engine | 1920-case invariant matrix, 100% statements |
 | Food search, diary | working; 57 seeded foods |
@@ -21,7 +22,8 @@ verified by running it; everything else is listed as what it is.
 | Meal plan solver | 26 tests; 12 seeded recipes |
 | Workouts | 40 exercises, session logging, progression advice |
 | Weight and progress | regression-based trend, labelled axis |
-| GDPR export/delete | request path only; **the job that acts on them does not exist** |
+| GDPR export/delete | worker built and verified end to end; **scheduling is a deploy step** |
+| Photo retention | worker built and verified; same scheduling step |
 
 Gates, all green as of this commit:
 
@@ -30,7 +32,7 @@ tsc --noEmit                exit 0
 expo lint                   exit 0, 0 errors
 depcruise src               exit 0, 104 modules
 jest                        269 tests
-supabase test db            97 pgTAP tests
+supabase test db            125 pgTAP tests
 ```
 
 Security audit against the live local database:
@@ -61,23 +63,34 @@ Needed: a decision (D-1), a key, and the bake-off described in ARCHITECTURE
 error, schema compliance, latency and **cost per scan**. The free tier's viability
 is unknown until that last number exists.
 
-### B2 — The GDPR jobs do not exist
+### ~~B2 — The GDPR jobs do not exist~~ (closed, except scheduling)
 
-`export_requests` and `deletion_requests` are written by the client and read by
-nobody. A deletion request today deletes nothing.
+`supabase/functions/data-lifecycle` now does the work, and it was exercised
+against the real stack rather than reasoned about:
 
-Needed: a scheduled `service_role` job that cascades the database rows, removes
-the user's storage objects, and marks the request completed. **The App Store
-rejects an app whose in-app deletion path does nothing**, and this is worse than
-absent - it tells the user their data is gone when it is not.
+```
+{"exports":{"processed":1},"deletions":{"processed":1},"photos":{"processed":1}}
+```
 
-### B3 — Photo lifecycle is declared but not enforced
+After the deletion run: profile, weight history, scans, the auth user and the
+request row itself were all gone, user B untouched, and `deletion_audit` held
+one row containing only timestamps.
 
-`ai_scans.expires_at` defaults to 90 days and nothing reads it. Photos
-accumulate indefinitely, which is the exact retention problem the column was
-added to prevent.
+Files are removed BEFORE the account, because storage objects are not covered by
+the database cascade - deleting the account first would leave the photos on disk
+with nothing pointing at them.
 
-Needed: a scheduled job deleting expired storage objects.
+**Still needed:** the schedule. See section 6.
+
+### ~~B3 — Photo lifecycle is declared but not enforced~~ (closed, except scheduling)
+
+The same worker deletes image bytes past `expires_at` and stamps
+`ai_scans.photo_deleted_at`. The scan record outlives the photo: the items and
+the user's corrections are what has lasting value.
+
+`expired_photo_paths` returns paths rather than deleting rows, because removing
+a row from `storage.objects` does not remove the underlying file. Deleting there
+would leave the bytes on disk and the record gone - the worst of both.
 
 ### B4 — Subscriptions are a schema, not a system
 
@@ -127,7 +140,7 @@ and four Maestro journeys.
 - [ ] 18+ age rating, matching the domain policy (D-3)
 - [ ] Camera usage string reviewed — it is user-facing copy, not a formality
 - [ ] Subscription disclosure per store rules
-- [ ] Account deletion reachable in-app (blocked by B2)
+- [ ] Account deletion reachable in-app — built; verify the schedule is live
 - [ ] **No health claims anywhere in the listing.** Every number this app
       produces is an estimate from a population formula, and the copy says so
 - [ ] Screenshots showing real states, not mocked perfect data
@@ -160,6 +173,45 @@ These are not bugs. They are the honest bounds of what the app does.
 ---
 
 ## 6. Operational notes
+
+### Scheduling the lifecycle worker
+
+The worker is built and verified; nothing calls it yet. It is deliberately not a
+migration, because a `cron.schedule` that reads a Vault secret fails on a fresh
+`db reset` and would break every local setup.
+
+Store the secret, then schedule, once per environment:
+
+```sql
+select vault.create_secret('<a long random string>', 'lifecycle_secret');
+
+select cron.schedule(
+  'data-lifecycle', '17 3 * * *',
+  $$
+  select net.http_post(
+    url     := '<project-url>/functions/v1/data-lifecycle',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'X-Lifecycle-Secret',
+      (select decrypted_secret from vault.decrypted_secrets where name = 'lifecycle_secret')
+    )
+  );
+  $$
+);
+```
+
+Set the same value as the `LIFECYCLE_SECRET` function secret. An unset secret
+makes the function deny every request rather than run unauthenticated - a
+misconfigured deploy must not leave an open endpoint that deletes accounts.
+
+### Writing auth fixtures
+
+A user inserted straight into `auth.users` is fine for RLS tests but is **not
+loadable by GoTrue**: `auth.admin.deleteUser` fails with "Database error loading
+user" when the token columns are NULL rather than `''`. Found the hard way while
+verifying the deletion path. Set `confirmation_token`, `recovery_token`,
+`email_change`, `email_change_token_new`, `email_change_token_current`,
+`phone_change`, `phone_change_token` and `reauthentication_token` to `''`.
 
 Local development:
 

@@ -425,3 +425,10 @@ enabled = true
 [functions.analyze-meal]
 enabled = true
 verify_jwt = true
+
+# Scheduled worker, not a user endpoint. verify_jwt is off because a cron
+# caller has no user session; authorisation is a dedicated shared secret
+# compared in constant time inside the function. An unset secret denies.
+[functions.data-lifecycle]
+enabled = true
+verify_jwt = false

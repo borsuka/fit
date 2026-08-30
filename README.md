@@ -82,7 +82,7 @@ npm run db:reset && npm run db:test
 ```
 
 The pgTAP suite assumes a clean database, so reset first. Current state: 269
-Jest tests, 97 pgTAP assertions, all green.
+Jest tests, 125 pgTAP assertions, all green.
 
 Adding a table means adding its RLS policies **and** its pgTAP test in the same change.
 `020_schema_invariants.test.sql` fails the build if any table in `public` lacks RLS, or if
