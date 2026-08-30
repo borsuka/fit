@@ -180,7 +180,33 @@ select throws_ok(
   'a user cannot log two weights for the same day');
 
 -- ---------------------------------------------------------------------------
--- 8. Storage buckets holding personal data must be private.
+-- 8. One meal section per type per day. Two 'lunch' rows on one date is not a
+--    state the diary can render - it would show one and hide the other's
+--    items, which reads to the user as lost data.
+-- ---------------------------------------------------------------------------
+
+insert into public.meals (user_id, local_date, meal_type)
+values ('33333333-3333-3333-3333-333333333333', '2026-09-01', 'lunch');
+
+select throws_ok(
+  $q$insert into public.meals (user_id, local_date, meal_type)
+     values ('33333333-3333-3333-3333-333333333333', '2026-09-01', 'lunch')$q$,
+  '23505',
+  null,
+  'a second lunch section on the same day is rejected');
+
+select lives_ok(
+  $q$insert into public.meals (user_id, local_date, meal_type)
+     values ('33333333-3333-3333-3333-333333333333', '2026-09-01', 'dinner')$q$,
+  'a different meal type on the same day is allowed');
+
+select lives_ok(
+  $q$insert into public.meals (user_id, local_date, meal_type)
+     values ('33333333-3333-3333-3333-333333333333', '2026-09-02', 'lunch')$q$,
+  'the same meal type on a different day is allowed');
+
+-- ---------------------------------------------------------------------------
+-- 9. Storage buckets holding personal data must be private.
 -- ---------------------------------------------------------------------------
 
 select is(
