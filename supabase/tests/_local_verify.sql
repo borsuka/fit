@@ -273,6 +273,35 @@ select _t.expect_ok($$
   values ('11111111-1111-1111-1111-111111111111'::uuid, '2026-08-31', 'breakfast')
 $$, 'A can create their own meal');
 
+-- --- set_active_goal RPC ---------------------------------------------------
+-- It is SECURITY INVOKER, so RLS must still decide whose goal gets written.
+
+select _t.expect_ok($$
+  select public.set_active_goal('lose', 'moderate', 80, 2200, 160, 205, 66, 'nutrition-engine-v1')
+$$, 'A can set their own goal through the RPC');
+
+select _t.expect_count($$
+  select count(*) from public.goals where is_active
+$$, 1, 'A has exactly one active goal');
+
+-- Calling it again must replace, not collide with the partial unique index.
+select _t.expect_ok($$
+  select public.set_active_goal('maintain', 'light', 80, 2759, 128, 300, 82, 'nutrition-engine-v1')
+$$, 'A can replace their goal');
+
+select _t.expect_count($$
+  select count(*) from public.goals where is_active
+$$, 1, 'replacing a goal leaves exactly one active');
+
+select _t.expect_count($$
+  select count(*) from public.goals
+   where is_active and goal = 'maintain' and calorie_target = 2759
+$$, 1, 'the surviving active goal is the new one');
+
+select _t.expect_count($$
+  select count(*) from public.goals
+$$, 2, 'the previous goal is kept, deactivated - history stays interpretable');
+
 -- Storage isolation
 select _t.expect_denied($$
   insert into storage.objects (bucket_id, name)
@@ -283,6 +312,39 @@ select _t.expect_ok($$
   insert into storage.objects (bucket_id, name)
   values ('food-photos', '11111111-1111-1111-1111-111111111111/mine.jpg')
 $$, 'A can write into their own photo folder');
+
+-- ===========================================================================
+-- Acting as user B
+-- ===========================================================================
+
+reset role;
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}',
+  false
+);
+set role authenticated;
+
+select _t.expect_count('select count(*) from public.meals', 1, 'B sees only their own meal');
+
+-- The RPC reads its user id from auth.uid(), never from an argument, so there
+-- is no parameter through which B could target A's row.
+select _t.expect_count(
+  'select count(*) from public.goals',
+  0,
+  'B cannot see A''s goals at all'
+);
+
+select _t.expect_ok(
+  $$select public.set_active_goal('gain', 'very', 90, 3000, 160, 350, 90, 'nutrition-engine-v1')$$,
+  'B can set their own goal'
+);
+
+select _t.expect_count(
+  'select count(*) from public.goals where is_active',
+  1,
+  'B''s active goal does not collide with A''s'
+);
 
 -- ===========================================================================
 -- Anonymous
