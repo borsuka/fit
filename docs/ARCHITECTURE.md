@@ -20,11 +20,12 @@ decision below is subordinate to one rule:
 
 ---
 
-## 2. Repository state at time of writing
+## 2. Starting point
 
-`C:\Users\boqn\Desktop\fit` is **empty**. No git repository, no `package.json`, no Expo
-config, no prior code. This is a clean greenfield build with no legacy constraints and
-no existing functionality to preserve.
+Kept as written, because the versions matter and the reasoning still applies.
+
+> At the Phase 0 audit the repository was **empty** - no git, no `package.json`, no Expo
+> config, no prior code. A clean greenfield build with nothing to preserve.
 
 Local toolchain verified:
 
@@ -32,9 +33,9 @@ Local toolchain verified:
 |---|---|---|
 | Node | 24.14.0 | OK for Expo SDK 57 |
 | npm | 11.9.0 | OK |
-| git | 2.53.0.windows.1 | repo not initialised yet |
+| git | 2.53.0.windows.1 | |
 | Docker | 29.2.1 | required by `supabase start` |
-| Supabase CLI | **not installed** | blocker for Phase 2 |
+| Supabase CLI | installed as a devDependency | run via `npx supabase` |
 
 Latest published versions checked against the npm registry on 2026-08-30 (not assumed):
 `expo@57.0.18`, `react-native@0.87.1`, `expo-router@57.0.17`, `react@19.2.8`,
@@ -155,29 +156,29 @@ fit/
 │   └── schemas/                      # shared zod schemas
 │
 ├── shared/                           # imported by BOTH app and edge functions
-│   └── ai-contracts/                 # AI request/response zod schemas
+│   └── ai-contracts/                 # AI response contract + validation
 │
 ├── supabase/
-│   ├── migrations/                   # numbered SQL, forward-only
+│   ├── migrations/                   # 16 numbered files, forward-only
 │   ├── functions/
-│   │   ├── analyze-meal/             # vision -> structured items
-│   │   ├── match-foods/              # items -> ranked food_id candidates
-│   │   ├── generate-meal-plan/
-│   │   ├── coach/
-│   │   ├── revenuecat-webhook/
-│   │   └── _shared/{prompts,ai,auth,quota}
-│   ├── seed/                         # USDA / OFF importer scripts
-│   └── tests/                        # pgTAP: RLS and constraint tests
+│   │   ├── analyze-meal/             # vision -> validated items  (BUILT)
+│   │   └── _shared/{context,prompts,vision}
+│   ├── seed/                         # foods, recipes, exercises
+│   └── tests/                        # pgTAP: RLS, invariants, search, AI
 │
-├── e2e/                              # Maestro flows
+├── scripts/db-local/                 # shim + assertions, no Supabase needed
 ├── docs/
 └── .env.example
 ```
 
 `shared/ai-contracts` is imported by the React Native app *and* by the Deno edge
-functions. One schema definition, two runtimes: Metro resolves it through a tsconfig
-path alias, Deno through an import map in `supabase/functions/deno.json` mapping `zod`
-to `npm:zod@4`. Duplicating the AI contract across two runtimes is how contracts drift.
+functions. One definition, two runtimes - duplicating a contract
+across runtimes is how contracts drift.
+
+It has **no dependencies at all**, which was not the original plan. The Supabase edge
+runtime does not apply an import map to a file outside `supabase/functions/`, so a bare
+`zod` specifier fails at worker boot; Metro rejects the explicit `.ts` extension Deno
+needs for a sibling import. Both verified from the actual failure. See section 16.
 
 ---
 
@@ -228,7 +229,7 @@ Camera
         -> ZOD VALIDATION  (fail -> one repair retry -> fail -> structured error)
         -> clamp + sanitise
         -> persist ai_scans / ai_scan_items
-  -> POST /functions/v1/match-foods   (FTS + trigram + alias table, ranked candidates)
+  -> match_scan_items()  RPC          (FTS + trigram + alias table, ranked candidates)
   -> CLIENT: user reviews every item — edit name, edit portion, remove, add
   -> deterministic nutrition computed from food_nutrients x grams
   -> user confirms -> meal_items written with a nutrition SNAPSHOT
