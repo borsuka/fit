@@ -35,7 +35,41 @@ export const SERVING_MAX = 2;
  */
 const WEIGHTS = { calories: 1, protein: 0.6, carbs: 0.25, fat: 0.25 } as const;
 
+/**
+ * How much a liked ingredient is worth, in units of plan error.
+ *
+ * Deliberately small. A plan the user enjoys is a plan they follow, so taste
+ * belongs in the objective - but it is worth about 15% of one axis, not more.
+ * Set it high and the solver starts serving what you like at the cost of the
+ * numbers, which is the failure mode of every "personalised" planner that
+ * quietly stops being a planner.
+ */
+export const LIKED_WEIGHT = 0.15;
+
 const clamp = (n: number, min: number, max: number): number => Math.min(Math.max(n, min), max);
+
+/**
+ * Fraction of a recipe's ingredients the user has said they like.
+ *
+ * A fraction rather than a boolean: a recipe built mostly from favourites is a
+ * better match than one that happens to contain a liked garnish, and a boolean
+ * cannot tell those apart.
+ */
+export const likedShare = (
+  candidate: MealCandidate,
+  likedFoodIds: readonly string[] | undefined,
+): number => {
+  if (likedFoodIds === undefined || likedFoodIds.length === 0) return 0;
+
+  const foodIds = candidate.foodIds as readonly string[];
+  if (foodIds.length === 0) return 0;
+
+  let liked = 0;
+  for (const foodId of foodIds) {
+    if (likedFoodIds.includes(foodId)) liked += 1;
+  }
+  return liked / foodIds.length;
+};
 
 /** Normalised, weighted distance from a target set. Scale-free, so it compares
  *  a 1500 kcal day and a 3500 kcal day on equal terms. */
@@ -50,6 +84,19 @@ export const planError = (totals: DayTargets, targets: DayTargets): number => {
     relative(totals.fatG, targets.fatG) * WEIGHTS.fat
   );
 };
+
+/**
+ * The objective the solver actually minimises: distance from the targets, plus
+ * a small penalty for a meal the user has shown no taste for.
+ *
+ * One function used by both passes. Greedy and local search optimising
+ * different objectives is how a solver ends up undoing its own good choices.
+ */
+export const planScore = (
+  totals: DayTargets,
+  targets: DayTargets,
+  meanLikedShare: number,
+): number => planError(totals, targets) + LIKED_WEIGHT * (1 - meanLikedShare);
 
 /**
  * Whether a candidate may be used at all.
@@ -71,6 +118,18 @@ export const isEligible = (
 
   for (const foodId of candidate.foodIds as readonly string[]) {
     if (constraints.dislikedFoodIds.includes(foodId)) return false;
+  }
+
+  const excludedCategories = constraints.excludedCategorySlugs;
+  if (excludedCategories !== undefined && excludedCategories.length > 0) {
+    // Unknown categories are rejected, not waved through. A vegetarian asking
+    // for no meat is better served by a smaller pool than by one recipe whose
+    // ingredients we could not classify.
+    const categories = candidate.categorySlugs;
+    if (categories === undefined) return false;
+    for (const slug of categories) {
+      if (excludedCategories.includes(slug)) return false;
+    }
   }
 
   if (
@@ -167,7 +226,7 @@ export const generatePlan = (request: PlanRequest): PlanOutcome => {
 
       const servings = scaleTo(candidate, slotTarget.calories);
       const planned = toPlanned(candidate, slot, servings, false);
-      const error = planError(
+      const score = planScore(
         {
           calories: planned.kcal,
           proteinG: planned.proteinG,
@@ -175,11 +234,12 @@ export const generatePlan = (request: PlanRequest): PlanOutcome => {
           fatG: planned.fatG,
         },
         slotTarget,
+        likedShare(candidate, constraints.likedFoodIds),
       );
 
-      if (error < bestError) {
+      if (score < bestError) {
         best = planned;
-        bestError = error;
+        bestError = score;
       }
     }
 
@@ -210,8 +270,19 @@ export const generatePlan = (request: PlanRequest): PlanOutcome => {
   // Greedy fills each slot against its own budget and can miss badly on the
   // total, because slot shares are a convention rather than a constraint. This
   // pass optimises what the user actually cares about.
+  const byRecipeId = new Map(candidates.map((c) => [c.recipeId, c]));
+  const meanLiked = (meals: readonly PlannedMeal[]): number => {
+    if (meals.length === 0) return 0;
+    let total = 0;
+    for (const meal of meals) {
+      const source = byRecipeId.get(meal.recipeId);
+      total += source === undefined ? 0 : likedShare(source, constraints.likedFoodIds);
+    }
+    return total / meals.length;
+  };
+
   let current = chosen;
-  let currentError = planError(sumMeals(current), targets);
+  let currentError = planScore(sumMeals(current), targets, meanLiked(current));
 
   for (let pass = 0; pass < 3; pass += 1) {
     let improved = false;
@@ -234,7 +305,7 @@ export const generatePlan = (request: PlanRequest): PlanOutcome => {
         const servings = scaleTo(candidate, Math.max(remaining, 0));
         const replacement = toPlanned(candidate, slot, servings, false);
         const trial = [...others.slice(0, index), replacement, ...others.slice(index)];
-        const trialError = planError(sumMeals(trial), targets);
+        const trialError = planScore(sumMeals(trial), targets, meanLiked(trial));
 
         if (trialError < currentError - 1e-9) {
           current = trial;
@@ -247,5 +318,9 @@ export const generatePlan = (request: PlanRequest): PlanOutcome => {
     if (!improved) break;
   }
 
-  return { ok: true, value: { meals: current, totals: sumMeals(current), error: currentError } };
+  // The reported `error` is the pure distance from target, NOT the objective:
+  // the user is told how far the plan is from their numbers, and a figure that
+  // secretly included a taste penalty would not mean what it says.
+  const totals = sumMeals(current);
+  return { ok: true, value: { meals: current, totals, error: planError(totals, targets) } };
 };

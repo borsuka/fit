@@ -1890,6 +1890,7 @@ export type Database = {
         Row: {
           allergen_ids: number[] | null;
           carbs_g: number | null;
+          category_slugs: string[] | null;
           fat_g: number | null;
           food_ids: string[] | null;
           is_public: boolean | null;

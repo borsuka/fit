@@ -9,7 +9,7 @@ export interface ScreenHeaderProps {
   title?: string | undefined;
   /** Where to go when there is nothing to go back to - a deep link, a reload,
    *  or a screen reached by `replace`. Without it the user is stranded. */
-  fallbackHref?: '/' | '/nutrition' | '/workouts' | undefined;
+  fallbackHref?: '/' | '/nutrition' | '/workouts' | '/mealplan' | '/progress' | undefined;
   onBack?: (() => void) | undefined;
   /** Right-hand slot: a save action, a counter, anything screen-specific. */
   trailing?: React.ReactNode;

@@ -1,7 +1,17 @@
 import { describe, expect, it } from '@jest/globals';
 
+import { excludedCategoriesForDiet } from './diets';
 import { slotShares, type MealSlot } from './slots';
-import { generatePlan, isEligible, planError, SERVING_MAX, SERVING_MIN } from './solver';
+import {
+  LIKED_WEIGHT,
+  generatePlan,
+  isEligible,
+  likedShare,
+  planError,
+  planScore,
+  SERVING_MAX,
+  SERVING_MIN,
+} from './solver';
 import type { DayTargets, MealCandidate, PlanConstraints } from './types';
 
 const targets: DayTargets = { calories: 2000, proteinG: 150, carbsG: 200, fatG: 67 };
@@ -340,5 +350,171 @@ describe('generatePlan', () => {
       }
     }
     expect(Number.isFinite(result.value.error)).toBe(true);
+  });
+});
+
+describe('likedShare', () => {
+  const withFoods = (foodIds: readonly string[]): MealCandidate =>
+    candidate('x', 500, ['lunch'], { foodIds });
+
+  it('is zero when the user has liked nothing', () => {
+    expect(likedShare(withFoods(['egg', 'oats']), [])).toBe(0);
+    expect(likedShare(withFoods(['egg', 'oats']), undefined)).toBe(0);
+  });
+
+  it('is the fraction of ingredients liked, not a yes/no', () => {
+    expect(likedShare(withFoods(['egg', 'oats', 'jam', 'salt']), ['egg'])).toBe(0.25);
+    expect(likedShare(withFoods(['egg', 'oats']), ['egg', 'oats'])).toBe(1);
+  });
+
+  it('is zero for a recipe with no ingredients rather than dividing by zero', () => {
+    expect(likedShare(withFoods([]), ['egg'])).toBe(0);
+  });
+
+  it('ignores liked foods the recipe does not contain', () => {
+    expect(likedShare(withFoods(['egg']), ['salmon', 'rice'])).toBe(0);
+  });
+});
+
+describe('planScore', () => {
+  it('equals the plan error when nothing is liked, plus the full penalty', () => {
+    expect(planScore(targets, targets, 0)).toBeCloseTo(LIKED_WEIGHT, 10);
+  });
+
+  it('carries no penalty when every meal is fully liked', () => {
+    expect(planScore(targets, targets, 1)).toBe(0);
+  });
+
+  it('never lets taste outweigh a meaningful miss on the numbers', () => {
+    // 20% over on calories alone already costs 0.2, more than the entire
+    // preference term can ever be worth. That ordering is the safety property:
+    // a liked plan must not beat an accurate one by much.
+    const over: DayTargets = { ...targets, calories: targets.calories * 1.2 };
+    expect(planScore(over, targets, 1)).toBeGreaterThan(planScore(targets, targets, 0));
+  });
+});
+
+describe('generatePlan with food preferences', () => {
+  /** Two lunches with identical nutrition; only the ingredients differ. */
+  const twinPool: MealCandidate[] = [
+    candidate('a', 500, ['breakfast']),
+    candidate('lunch-plain', 650, ['lunch'], { foodIds: ['rice', 'chicken'] }),
+    candidate('lunch-liked', 650, ['lunch'], { foodIds: ['salmon', 'quinoa'] }),
+    candidate('c', 700, ['dinner']),
+    candidate('d', 200, ['snack']),
+  ];
+
+  it('prefers the recipe built from liked foods when nutrition is a tie', () => {
+    const result = generatePlan({
+      targets,
+      slots: allSlots,
+      candidates: twinPool,
+      constraints: { ...noConstraints, likedFoodIds: ['salmon', 'quinoa'] },
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.meals.find((m) => m.slot === 'lunch')?.recipeId).toBe('lunch-liked');
+  });
+
+  it('still reports the honest distance from target, not the taste-adjusted one', () => {
+    const liked = generatePlan({
+      targets,
+      slots: allSlots,
+      candidates: twinPool,
+      constraints: { ...noConstraints, likedFoodIds: ['salmon', 'quinoa'] },
+    });
+
+    expect(liked.ok).toBe(true);
+    if (!liked.ok) return;
+    // The two lunches are nutritionally identical, so preferring one cannot
+    // change the reported error. If it did, the number shown to the user would
+    // be measuring something other than what it claims to measure.
+    expect(liked.value.error).toBeCloseTo(planError(liked.value.totals, targets), 10);
+  });
+
+  it('does not let a liked food override a dislike or an allergen', () => {
+    const conflicted = generatePlan({
+      targets,
+      slots: ['lunch'],
+      candidates: [
+        candidate('safe', 650, ['lunch'], { foodIds: ['rice'] }),
+        candidate('unsafe', 650, ['lunch'], { foodIds: ['peanut'], allergenIds: [5] }),
+      ],
+      // Liking peanuts changes nothing: an allergen exclusion is a hard filter.
+      constraints: { ...noConstraints, excludedAllergenIds: [5], likedFoodIds: ['peanut'] },
+    });
+
+    expect(conflicted.ok).toBe(true);
+    if (!conflicted.ok) return;
+    expect(conflicted.value.meals[0]?.recipeId).toBe('safe');
+  });
+
+  it('produces the same plan as before when the user has liked nothing', () => {
+    const withField = generatePlan({
+      targets,
+      slots: allSlots,
+      candidates: pool,
+      constraints: { ...noConstraints, likedFoodIds: [] },
+    });
+    const without = generatePlan({
+      targets,
+      slots: allSlots,
+      candidates: pool,
+      constraints: noConstraints,
+    });
+
+    expect(withField).toEqual(without);
+  });
+});
+
+describe('diet exclusions', () => {
+  const meaty = candidate('meaty', 600, ['dinner'], {
+    categorySlugs: ['meat-poultry', 'grains-cereals'],
+  });
+  const fishy = candidate('fishy', 600, ['dinner'], {
+    categorySlugs: ['fish-seafood', 'vegetables'],
+  });
+  const cheesy = candidate('cheesy', 600, ['dinner'], {
+    categorySlugs: ['dairy-eggs', 'vegetables'],
+  });
+  const plants = candidate('plants', 600, ['dinner'], {
+    categorySlugs: ['legumes', 'vegetables'],
+  });
+  const unknown = candidate('unknown', 600, ['dinner']);
+
+  const eligibleFor = (excluded: readonly string[]): string[] =>
+    [meaty, fishy, cheesy, plants, unknown]
+      .filter((c) => isEligible(c, 'dinner', { ...noConstraints, excludedCategorySlugs: excluded }))
+      .map((c) => c.recipeId);
+
+  it('lets everything through when no diet is set', () => {
+    expect(eligibleFor([])).toEqual(['meaty', 'fishy', 'cheesy', 'plants', 'unknown']);
+  });
+
+  it('excludes meat and fish for a vegetarian', () => {
+    expect(eligibleFor(excludedCategoriesForDiet('vegetarian'))).toEqual(['cheesy', 'plants']);
+  });
+
+  it('excludes dairy as well for a vegan', () => {
+    expect(eligibleFor(excludedCategoriesForDiet('vegan'))).toEqual(['plants']);
+  });
+
+  it('keeps fish for a pescatarian', () => {
+    expect(eligibleFor(excludedCategoriesForDiet('pescatarian'))).toEqual([
+      'fishy',
+      'cheesy',
+      'plants',
+    ]);
+  });
+
+  it('rejects a recipe whose ingredients we cannot classify', () => {
+    // Not a technicality: an unclassified recipe is one we cannot prove is
+    // meat-free, and a vegan would rather see a shorter list than a wrong one.
+    expect(eligibleFor(['meat-poultry'])).not.toContain('unknown');
+  });
+
+  it('treats an unknown diet name as no restriction rather than throwing', () => {
+    expect(excludedCategoriesForDiet('carnivore')).toEqual([]);
   });
 });

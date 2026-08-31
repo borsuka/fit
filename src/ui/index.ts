@@ -6,6 +6,7 @@ export { ScreenHeader, type ScreenHeaderProps } from './ScreenHeader';
 export { Text, type TextProps } from './Text';
 export { TextField, type TextFieldProps } from './TextField';
 export { ThemeProvider, useTheme } from './ThemeProvider';
+export { ToggleRow, type ToggleRowProps } from './ToggleRow';
 export {
   MIN_TOUCH_TARGET,
   darkTheme,

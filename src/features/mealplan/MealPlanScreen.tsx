@@ -1,4 +1,5 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { View } from 'react-native';
@@ -23,6 +24,7 @@ const GENERATOR_VERSION = 'mealplan-solver-v1';
 export function MealPlanScreen() {
   const { t } = useTranslation();
   const theme = useTheme();
+  const router = useRouter();
   const userId = useRequireUserId();
   const toMessage = useErrorMessage();
 
@@ -125,6 +127,27 @@ export function MealPlanScreen() {
         <Text variant="body" tone="muted">
           {t('mealplan.body')}
         </Text>
+      </View>
+
+      {/* Above the plan, not buried in a settings tab: what the plan is built
+          from is the first thing someone questions when they dislike it. */}
+      <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
+        <View style={{ flex: 1 }}>
+          <Button
+            label={t('mealplan.configure')}
+            variant="secondary"
+            fullWidth
+            onPress={() => router.push('/diet-settings')}
+          />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Button
+            label={t('mealplan.preferences')}
+            variant="secondary"
+            fullWidth
+            onPress={() => router.push('/food-preferences')}
+          />
+        </View>
       </View>
 
       {plan === null ? (

@@ -60,6 +60,43 @@ export const searchFoods = async (query: string, limit = 25): Promise<FoodSearch
   }
 };
 
+/**
+ * Names for a set of ids.
+ *
+ * The preferences table stores ids alone, so a screen listing what someone has
+ * marked has nothing to show without this. Ordered by name rather than by the
+ * id order passed in: the caller's order is arbitrary, and alphabetical is the
+ * only order a reader can predict.
+ */
+export const getFoodsByIds = async (foodIds: readonly string[]): Promise<FoodSearchResult[]> => {
+  if (foodIds.length === 0) return [];
+
+  try {
+    const { data, error } = await supabase
+      .from('foods')
+      .select('id, name, brand, kcal_100g, protein_100g, carbs_100g, fat_100g, fiber_100g, source')
+      .in('id', [...foodIds])
+      .order('name');
+
+    if (error) throw mapPostgrestError(error);
+
+    return (data ?? []).map((row) => ({
+      id: row.id,
+      name: row.name,
+      brand: row.brand,
+      kcal100g: Number(row.kcal_100g),
+      protein100g: Number(row.protein_100g),
+      carbs100g: Number(row.carbs_100g),
+      fat100g: Number(row.fat_100g),
+      fiber100g: row.fiber_100g === null ? null : Number(row.fiber_100g),
+      source: row.source,
+      score: 0,
+    }));
+  } catch (e) {
+    throw mapUnknownError(e);
+  }
+};
+
 export const getFood = async (foodId: string): Promise<FoodDetail | null> => {
   try {
     const { data, error } = await supabase

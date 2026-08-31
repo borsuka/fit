@@ -1,8 +1,10 @@
 import {
+  excludedCategoriesForDiet,
   generatePlan,
   type DayTargets,
   type MealCandidate,
   type MealSlot,
+  type PlannableDiet,
   type PlanResult,
 } from '@/domain/mealplan';
 import type { LocalDate } from '@/domain/dates/localDate';
@@ -19,27 +21,130 @@ import { mapPostgrestError, mapUnknownError } from '@/services/supabase/errors';
  * incident, and one filter is one place to get it wrong.
  */
 
+/** The column accepts keto and mediterranean too; the app does not offer them.
+ *  See src/domain/mealplan/diets.ts for why. */
+export type DietType = PlannableDiet;
+
 export interface DietSettings {
+  readonly diet: DietType;
   readonly excludedAllergenIds: readonly number[];
   readonly mealsPerDay: number;
   readonly maxPrepMinutes: number | null;
+}
+
+/** What a user gets before they have opened the settings screen. Written down
+ *  once so the screen, the planner and the row default cannot drift apart. */
+export const DEFAULT_DIET_SETTINGS: DietSettings = {
+  diet: 'omnivore',
+  excludedAllergenIds: [],
+  mealsPerDay: 4,
+  maxPrepMinutes: null,
+};
+
+export interface FoodPreferences {
+  readonly likedFoodIds: readonly string[];
+  readonly dislikedFoodIds: readonly string[];
 }
 
 export const getDietSettings = async (userId: string): Promise<DietSettings> => {
   try {
     const { data, error } = await supabase
       .from('user_diet_settings')
-      .select('excluded_allergens, meals_per_day, max_prep_minutes')
+      .select('diet, excluded_allergens, meals_per_day, max_prep_minutes')
       .eq('user_id', userId)
       .maybeSingle();
 
     if (error !== null) throw mapPostgrestError(error);
+    if (data === null) return DEFAULT_DIET_SETTINGS;
 
     return {
-      excludedAllergenIds: data?.excluded_allergens ?? [],
-      mealsPerDay: data?.meals_per_day ?? 4,
-      maxPrepMinutes: data?.max_prep_minutes ?? null,
+      diet: data.diet as DietType,
+      excludedAllergenIds: data.excluded_allergens ?? [],
+      mealsPerDay: data.meals_per_day,
+      maxPrepMinutes: data.max_prep_minutes,
     };
+  } catch (e) {
+    throw mapUnknownError(e);
+  }
+};
+
+/**
+ * Writes the whole settings row.
+ *
+ * An upsert rather than an update: a user who has never opened this screen has
+ * no row, and an update would report success while changing nothing - the
+ * silent-no-op failure mode that RLS-shaped UPDATEs are prone to.
+ */
+export const saveDietSettings = async (
+  userId: string,
+  settings: DietSettings,
+): Promise<DietSettings> => {
+  try {
+    const { error } = await supabase.from('user_diet_settings').upsert({
+      user_id: userId,
+      diet: settings.diet,
+      excluded_allergens: [...settings.excludedAllergenIds],
+      meals_per_day: settings.mealsPerDay,
+      max_prep_minutes: settings.maxPrepMinutes,
+    });
+
+    if (error !== null) throw mapPostgrestError(error);
+    return settings;
+  } catch (e) {
+    throw mapUnknownError(e);
+  }
+};
+
+/**
+ * Liked and disliked foods.
+ *
+ * 'excluded' is folded in with 'disliked' for planning: both mean "do not put
+ * this in front of me". They stay separate in the database because only one of
+ * them is a statement about taste.
+ */
+export const getFoodPreferences = async (userId: string): Promise<FoodPreferences> => {
+  try {
+    const { data, error } = await supabase
+      .from('user_food_preferences')
+      .select('food_id, preference')
+      .eq('user_id', userId);
+
+    if (error !== null) throw mapPostgrestError(error);
+
+    const liked: string[] = [];
+    const disliked: string[] = [];
+    for (const row of data ?? []) {
+      if (row.preference === 'liked') liked.push(row.food_id);
+      else disliked.push(row.food_id);
+    }
+    return { likedFoodIds: liked, dislikedFoodIds: disliked };
+  } catch (e) {
+    throw mapUnknownError(e);
+  }
+};
+
+/** Passing null clears the preference entirely - "no opinion" is a real state
+ *  and is not the same as a dislike. */
+export const setFoodPreference = async (
+  userId: string,
+  foodId: string,
+  preference: 'liked' | 'disliked' | null,
+): Promise<void> => {
+  try {
+    if (preference === null) {
+      const { error } = await supabase
+        .from('user_food_preferences')
+        .delete()
+        .eq('user_id', userId)
+        .eq('food_id', foodId);
+      if (error !== null) throw mapPostgrestError(error);
+      return;
+    }
+
+    const { error } = await supabase
+      .from('user_food_preferences')
+      .upsert({ user_id: userId, food_id: foodId, preference });
+    if (error !== null) throw mapPostgrestError(error);
   } catch (e) {
     throw mapUnknownError(e);
   }
@@ -52,7 +157,7 @@ export const getCandidates = async (
     let query = supabase
       .from('meal_plan_candidates')
       .select(
-        'recipe_id, name, kcal, protein_g, carbs_g, fat_g, meal_slots, allergen_ids, food_ids, prep_minutes',
+        'recipe_id, name, kcal, protein_g, carbs_g, fat_g, meal_slots, allergen_ids, food_ids, category_slugs, prep_minutes',
       );
 
     if (excludedAllergenIds.length > 0) {
@@ -74,6 +179,7 @@ export const getCandidates = async (
       allergenIds: (row.allergen_ids ?? []) as number[],
       foodIds: (row.food_ids ?? []) as string[],
       slots: (row.meal_slots ?? []) as MealSlot[],
+      categorySlugs: (row.category_slugs ?? []) as string[],
       prepMinutes: row.prep_minutes === null ? null : Number(row.prep_minutes),
     }));
   } catch (e) {
@@ -100,7 +206,10 @@ export interface BuildPlanInput {
 }
 
 export const buildPlan = async (input: BuildPlanInput): Promise<PlanResult> => {
-  const candidates = await getCandidates(input.settings.excludedAllergenIds);
+  const [candidates, preferences] = await Promise.all([
+    getCandidates(input.settings.excludedAllergenIds),
+    getFoodPreferences(input.userId),
+  ]);
 
   const outcome = generatePlan({
     targets: input.targets,
@@ -108,7 +217,9 @@ export const buildPlan = async (input: BuildPlanInput): Promise<PlanResult> => {
     candidates,
     constraints: {
       excludedAllergenIds: input.settings.excludedAllergenIds,
-      dislikedFoodIds: [],
+      dislikedFoodIds: preferences.dislikedFoodIds,
+      likedFoodIds: preferences.likedFoodIds,
+      excludedCategorySlugs: excludedCategoriesForDiet(input.settings.diet),
       maxPrepMinutes: input.settings.maxPrepMinutes,
     },
   });

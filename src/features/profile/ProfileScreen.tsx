@@ -1,4 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, View } from 'react-native';
@@ -21,6 +22,7 @@ import { Button, Card, Screen, Text, useTheme } from '@/ui';
 export function ProfileScreen() {
   const { t, i18n } = useTranslation();
   const theme = useTheme();
+  const router = useRouter();
   const userId = useRequireUserId();
   const toMessage = useErrorMessage();
 
@@ -70,21 +72,30 @@ export function ProfileScreen() {
         </Text>
       </Card>
 
-      {goal === null || goal === undefined ? null : (
-        <Card>
-          <Text variant="label" tone="muted">
-            {t('profile.currentGoal')}
+      <Card>
+        <Text variant="label" tone="muted">
+          {t('profile.currentGoal')}
+        </Text>
+        {goal === null || goal === undefined ? (
+          <Text variant="body" tone="muted">
+            {t('goal.previewUnavailable')}
           </Text>
-          <Text variant="body">
-            {goal.goal} · {goal.calorie_target} kcal
-          </Text>
-          <Text variant="caption" tone="muted">
-            {/* Which engine version produced these numbers. A formula change
-                must be auditable rather than invisible. */}
-            {goal.computed_by}
-          </Text>
-        </Card>
-      )}
+        ) : (
+          <>
+            <Text variant="body">
+              {t(`onboarding.goal_${goal.goal}`)} · {goal.calorie_target} kcal
+            </Text>
+            <Text variant="caption" tone="muted">
+              {/* Which engine version produced these numbers. A formula change
+                  must be auditable rather than invisible. */}
+              {goal.computed_by}
+            </Text>
+          </>
+        )}
+        <View style={{ marginTop: theme.spacing.md }}>
+          <Button label={t('goal.edit')} variant="secondary" onPress={() => router.push('/goal')} />
+        </View>
+      </Card>
 
       <Card>
         <Text variant="label" tone="muted">
