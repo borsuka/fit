@@ -1,3 +1,4 @@
+import { forgetEmail } from '@/services/auth/rememberedEmail';
 import { supabase } from '@/services/supabase/client';
 import { mapPostgrestError, mapUnknownError } from '@/services/supabase/errors';
 
@@ -27,6 +28,12 @@ export const requestAccountDeletion = async (userId: string): Promise<void> => {
   try {
     const { error } = await supabase.from('deletion_requests').insert({ user_id: userId });
     if (error !== null) throw mapPostgrestError(error);
+
+    // After the request is recorded, not before: if the insert fails the user
+    // still has an account, and clearing their address first would leave the
+    // sign-in field empty for an account that still exists. "Delete
+    // everything" has to include the address we kept on this device.
+    await forgetEmail();
   } catch (e) {
     throw mapUnknownError(e);
   }

@@ -124,6 +124,77 @@ select is(
   'Zzyzx protein shake B',
   'B sees their own private food and not A''s');
 
+-- ---------------------------------------------------------------------------
+-- Prefix matching, and both languages
+-- ---------------------------------------------------------------------------
+-- The bug these exist for: search matched whole words only, so a user saw an
+-- empty list until they happened to finish a word. 'chic' returned nothing
+-- while 'chicken' returned ten, and 'ме' returned honey because two Cyrillic
+-- letters against the alias 'мед' happened to clear the trigram threshold
+-- while nothing else did.
+
+select set_config('request.jwt.claims',
+  json_build_object('sub', :'user_a', 'role', 'authenticated')::text, true);
+
+select isnt_empty(
+  $q$select id from public.search_foods('chic', 25)$q$,
+  'a four-letter prefix finds chicken - people look at the list while typing');
+
+select isnt_empty(
+  $q$select id from public.search_foods('пил', 25)$q$,
+  'a three-letter Cyrillic prefix finds the chicken rows through their aliases');
+
+select isnt_empty(
+  $q$select id from public.search_foods('мля', 25)$q$,
+  'a partial Bulgarian word finds the milk rows');
+
+select is(
+  (select name from public.search_foods('мляко', 25) limit 1),
+  'Milk, 3.6% fat',
+  'an alias that IS the query outranks one that merely contains it');
+
+select is(
+  (select matched_alias from public.search_foods('мляко', 25) limit 1),
+  'мляко',
+  'the matching alias comes back, so the list can explain an English name');
+
+select is(
+  (select matched_alias from public.search_foods('chicken breast', 25) limit 1),
+  'chicken breast',
+  'an English alias matches too - both languages go through the same path');
+
+select ok(
+  (select count(*) from public.search_foods('yogurt', 25)) > 0,
+  'the American spelling finds the yoghurt, which shares no lexeme with it');
+
+-- Every food is reachable in Bulgarian. Written as a query over the catalogue
+-- rather than a list of examples, so a food seeded later without a Bulgarian
+-- name fails this rather than being found missing by a user.
+select is_empty(
+  $q$select f.name
+       from public.foods f
+       left join (select distinct food_id from public.food_aliases where locale = 'bg') bg
+              on bg.food_id = f.id
+      where f.is_public
+        and f.archived_at is null
+        and f.source = 'curated'
+        and bg.food_id is null$q$,
+  'every curated food carries at least one Bulgarian alias');
+
+-- tsquery syntax typed into the box is data, not syntax. The prefix query is
+-- built from quoted lexemes for exactly this reason; unquoted, this throws.
+select lives_ok(
+  $q$select id from public.search_foods('chicken & !(breast', 25)$q$,
+  'tsquery operators in the search box do not reach to_tsquery as syntax');
+
+select lives_ok(
+  $q$select id from public.search_foods('   ', 25)$q$,
+  'a blank query is not an error');
+
+select is_empty(
+  $q$select id from public.search_foods('   ', 25)$q$,
+  'a blank query returns nothing rather than the whole catalogue');
+
 reset role;
 select set_config('request.jwt.claims', '', true);
 set local role anon;

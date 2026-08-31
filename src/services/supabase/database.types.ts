@@ -2110,6 +2110,7 @@ export type Database = {
           fiber_100g: number;
           id: string;
           kcal_100g: number;
+          matched_alias: string;
           name: string;
           protein_100g: number;
           score: number;

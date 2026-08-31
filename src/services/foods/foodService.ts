@@ -16,6 +16,9 @@ export interface FoodSearchResult {
   readonly fat100g: number;
   readonly fiber100g: number | null;
   readonly source: FoodSource;
+  /** The alias that caused the match, when one did. Shown under the English
+   *  name so a Bulgarian speaker can see why a row is in the list. */
+  readonly matchedAlias: string | null;
   readonly score: number;
 }
 
@@ -53,6 +56,7 @@ export const searchFoods = async (query: string, limit = 25): Promise<FoodSearch
       fat100g: Number(row.fat_100g),
       fiber100g: row.fiber_100g === null ? null : Number(row.fiber_100g),
       source: row.source,
+      matchedAlias: row.matched_alias,
       score: Number(row.score),
     }));
   } catch (e) {
@@ -90,6 +94,7 @@ export const getFoodsByIds = async (foodIds: readonly string[]): Promise<FoodSea
       fat100g: Number(row.fat_100g),
       fiber100g: row.fiber_100g === null ? null : Number(row.fiber_100g),
       source: row.source,
+      matchedAlias: null,
       score: 0,
     }));
   } catch (e) {
@@ -121,6 +126,8 @@ export const getFood = async (foodId: string): Promise<FoodDetail | null> => {
       fat100g: Number(data.fat_100g),
       fiber100g: data.fiber_100g === null ? null : Number(data.fiber_100g),
       source: data.source,
+      // Nothing was searched for; the row was fetched by id.
+      matchedAlias: null,
       score: 1,
       densityGPerMl: data.density_g_ml === null ? null : Number(data.density_g_ml),
       servings: (data.food_servings ?? []).map((s) => ({
@@ -180,6 +187,8 @@ export const getRecentFoods = async (userId: string, limit = 20): Promise<FoodSe
         fat100g: Number(food.fat_100g),
         fiber100g: food.fiber_100g === null ? null : Number(food.fiber_100g),
         source: food.source,
+        // A recent food was not searched for either.
+        matchedAlias: null,
         score: 1,
       });
 

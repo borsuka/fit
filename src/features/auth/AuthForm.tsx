@@ -15,6 +15,13 @@ export interface AuthFormProps {
   submitting: boolean;
   /** Already translated. Rendered above the form. */
   errorMessage?: string | undefined;
+  /**
+   * The address this device signed in with last. Shown until the user types
+   * something of their own - not copied into state, so an address that arrives
+   * from storage a moment after first paint still appears, and never overwrites
+   * what someone is halfway through entering.
+   */
+  initialEmail?: string | undefined;
   onSubmit: (values: AuthFormValues) => void;
 }
 
@@ -26,11 +33,21 @@ export interface AuthFormProps {
  */
 const looksLikeEmail = (value: string): boolean => /^\S+@\S+\.\S+$/.test(value.trim());
 
-export function AuthForm({ mode, submitting, errorMessage, onSubmit }: AuthFormProps) {
+export function AuthForm({
+  mode,
+  submitting,
+  errorMessage,
+  initialEmail,
+  onSubmit,
+}: AuthFormProps) {
   const { t } = useTranslation();
   const theme = useTheme();
 
-  const [email, setEmail] = useState('');
+  // Null means "untouched", which is different from "cleared to empty" - a user
+  // who deletes the remembered address must not have it reappear.
+  const [typedEmail, setTypedEmail] = useState<string | null>(null);
+  const email = typedEmail ?? initialEmail ?? '';
+  const setEmail = (value: string): void => setTypedEmail(value);
   const [password, setPassword] = useState('');
   // Errors appear on submit, not while typing. Validating on every keystroke
   // means the field turns red halfway through an address someone is still

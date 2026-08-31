@@ -39,7 +39,10 @@ export function FoodSearchScreen({ mealType }: { mealType: MealType }) {
   const renderRow = ({ item }: { item: FoodSearchResult }) => (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${item.name}, ${Math.round(item.kcal100g)} calories per 100 grams`}
+      accessibilityLabel={t('portion.resultA11y', {
+        name: item.name,
+        kcal: Math.round(item.kcal100g),
+      })}
       onPress={() =>
         router.push({
           pathname: '/food/[id]',
@@ -57,7 +60,11 @@ export function FoodSearchScreen({ mealType }: { mealType: MealType }) {
       <Text variant="body" numberOfLines={1}>
         {item.name}
       </Text>
-      <Text variant="caption" tone="muted">
+      <Text variant="caption" tone="muted" numberOfLines={1}>
+        {/* The catalogue name is English. When a Bulgarian alias is what
+            matched, showing it is the difference between a list that looks
+            wrong and one that explains itself. */}
+        {item.matchedAlias === null ? '' : `${item.matchedAlias} · `}
         {item.brand === null ? '' : `${item.brand} · `}
         {Math.round(item.kcal100g)} kcal / 100 g
       </Text>

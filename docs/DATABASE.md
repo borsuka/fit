@@ -210,6 +210,38 @@ gets something wrong — which an embedding index is not.
 
 ---
 
+### Search
+
+`search_foods(query, limit)` combines four signals and returns the alias that matched:
+
+| Signal                     | Score       | Why it is there                        |
+| -------------------------- | ----------- | -------------------------------------- |
+| Alias equals the query     | 1.00        | "мляко" must mean milk, not skimmed milk |
+| Whole word in name/brand   | 1.00        | The strongest evidence there is        |
+| Whole word in an alias     | 0.90 – 0.95 | Coverage of the alias breaks the tie   |
+| **Prefix** in name/brand   | 0.70        | People look at the list while typing   |
+| **Prefix** in an alias     | 0.60 – 0.65 | Same, in the other language            |
+| Trigram similarity         | 0.30 – 1.00 | Survives a typo                        |
+
+Prefix matching is what makes the box usable. Before it, `websearch_to_tsquery` produced
+whole lexemes only and trigram similarity divides by the union of both strings' trigrams,
+so a short query against a long name scored far under the 0.3 threshold: `chicken` found
+ten foods, `chick` found two, `chic` found none.
+
+The prefix query is built by round-tripping the term through `to_tsvector` and quoting
+each lexeme before appending `:*`. That is what makes it safe — tsquery operators typed
+into the search box arrive as data, never as syntax.
+
+Aliases are matched by full text as well as by trigram, and that is what makes Bulgarian
+work at all: `foods.search_vector` covers `name` and `brand`, both English, so before this
+the only route for a Cyrillic query was trigram similarity against an alias. Every curated
+food carries at least one Bulgarian alias, and a pgTAP test fails if one arrives without.
+
+Ties are broken by, in order: a curated alias matched (someone decided this phrase means
+this food), the name starting with the query, source, `data_quality`, then name length.
+
+---
+
 ## 5. Diary
 
 ```sql

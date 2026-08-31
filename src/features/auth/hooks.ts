@@ -9,6 +9,7 @@ import {
   signUp,
   type Credentials,
 } from '@/services/auth/authService';
+import { rememberEmail } from '@/services/auth/rememberedEmail';
 
 /**
  * Auth mutations.
@@ -19,11 +20,26 @@ import {
  * second, worse error path.
  */
 
+/**
+ * The address is remembered AFTER the credentials are accepted, never before.
+ * Storing what was typed on every attempt would leave a typo in the field for
+ * the next launch, which reads as "we got your account wrong".
+ */
 export const useSignIn = (): UseMutationResult<Session, AppError, Credentials> =>
-  useMutation({ mutationFn: signIn });
+  useMutation({
+    mutationFn: signIn,
+    onSuccess: (_session, { email }) => {
+      void rememberEmail(email);
+    },
+  });
 
 export const useSignUp = (): UseMutationResult<User | null, AppError, Credentials> =>
-  useMutation({ mutationFn: signUp });
+  useMutation({
+    mutationFn: signUp,
+    onSuccess: (_user, { email }) => {
+      void rememberEmail(email);
+    },
+  });
 
 export const usePasswordReset = (): UseMutationResult<void, AppError, string> =>
   useMutation({ mutationFn: requestPasswordReset });
@@ -37,6 +53,10 @@ export const useSignOut = (): UseMutationResult<void, AppError, void> => {
       // Every cached query is scoped to a user id, but clearing outright is
       // the honest move: a signed-out device must hold no diary, no weight
       // history and no photos in memory, whatever the next account is.
+      //
+      // The remembered address deliberately survives. Signing out is not
+      // disowning the device, and making someone retype their address every
+      // time is the friction this exists to remove.
       queryClient.clear();
     },
   });

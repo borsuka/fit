@@ -7,20 +7,21 @@ import { AuthForm, type AuthFormValues } from './AuthForm';
 
 const renderForm = async (
   mode: 'signIn' | 'signUp' = 'signIn',
-  props: { submitting?: boolean; errorMessage?: string } = {},
+  props: { submitting?: boolean; errorMessage?: string; initialEmail?: string } = {},
 ) => {
   const onSubmit = jest.fn<(values: AuthFormValues) => void>();
-  await render(
+  const view = await render(
     <ThemeProvider forced="light">
       <AuthForm
         mode={mode}
         submitting={props.submitting ?? false}
         errorMessage={props.errorMessage}
+        initialEmail={props.initialEmail}
         onSubmit={onSubmit}
       />
     </ThemeProvider>,
   );
-  return { onSubmit };
+  return { onSubmit, view };
 };
 
 const fill = async (email: string, password: string): Promise<void> => {
@@ -124,5 +125,55 @@ describe('AuthForm', () => {
     // when they are trying to get back in is unhelpful and alarming.
     await renderForm('signIn');
     expect(screen.queryByText('At least 10 characters.')).toBeNull();
+  });
+});
+
+/**
+ * Remembering the last address is a convenience, and every one of these tests
+ * is about the ways a convenience turns into a nuisance: an address that
+ * overwrites what someone is typing, or reappears after they deliberately
+ * cleared it to sign in as somebody else.
+ */
+describe('AuthForm remembered address', () => {
+  it('shows the remembered address without the user typing', async () => {
+    await renderForm('signIn', { initialEmail: 'returning@example.com' });
+    expect(screen.getByLabelText('Email').props.value).toBe('returning@example.com');
+  });
+
+  it('submits the remembered address as typed if it is left alone', async () => {
+    const { onSubmit } = await renderForm('signIn', { initialEmail: 'returning@example.com' });
+    await fireEvent.changeText(screen.getByLabelText('Password'), 'a-long-enough-passphrase');
+    await fireEvent.press(screen.getByLabelText('Sign in'));
+
+    expect(onSubmit).toHaveBeenCalledWith({
+      email: 'returning@example.com',
+      password: 'a-long-enough-passphrase',
+    });
+  });
+
+  it('lets a different account be typed over it', async () => {
+    const { onSubmit } = await renderForm('signIn', { initialEmail: 'returning@example.com' });
+    await fill('someone.else@example.com', 'a-long-enough-passphrase');
+    await fireEvent.press(screen.getByLabelText('Sign in'));
+
+    expect(onSubmit).toHaveBeenCalledWith({
+      email: 'someone.else@example.com',
+      password: 'a-long-enough-passphrase',
+    });
+  });
+
+  it('stays empty once cleared, rather than refilling itself', async () => {
+    // The reason the typed value is tracked separately from the prop: a copy
+    // seeded once would work, but a re-render that re-reads the prop would put
+    // the old address back the moment the field went blank.
+    await renderForm('signIn', { initialEmail: 'returning@example.com' });
+    await fireEvent.changeText(screen.getByLabelText('Email'), '');
+
+    expect(screen.getByLabelText('Email').props.value).toBe('');
+  });
+
+  it('starts empty when nothing is remembered', async () => {
+    await renderForm('signIn');
+    expect(screen.getByLabelText('Email').props.value).toBe('');
   });
 });
