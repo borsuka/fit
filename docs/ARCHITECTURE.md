@@ -118,15 +118,20 @@ fit/
 │   │   ├── _layout.tsx
 │   │   ├── (auth)/                   # sign-in, sign-up, reset
 │   │   ├── (onboarding)/             # profile -> goal -> targets
-│   │   ├── (tabs)/
+│   │   ├── (tabs)/                   # guarded: signed in and onboarded
 │   │   │   ├── index.tsx             # Home
 │   │   │   ├── nutrition.tsx
+│   │   │   ├── mealplan.tsx
 │   │   │   ├── workouts.tsx
 │   │   │   ├── progress.tsx
 │   │   │   └── profile.tsx
-│   │   ├── food/[id].tsx
-│   │   ├── scan/                     # camera -> analyzing -> review -> confirm
-│   │   └── workout/[sessionId].tsx
+│   │   └── (app)/                    # guarded: everything signed-in that is not a tab
+│   │       ├── search.tsx  food/[id].tsx
+│   │       ├── scan/                 # camera -> analyzing -> review -> confirm
+│   │       ├── barcode/  workout/[id].tsx
+│   │       ├── diet-settings.tsx  food-preferences.tsx  goal.tsx
+│   │       ├── programs/             # catalogue and one programme
+│   │       └── template/[id].tsx     # one of the user's own plans
 │   │
 │   ├── features/                     # vertical slices
 │   │   ├── auth/ onboarding/ diary/ foods/ scan/
@@ -350,6 +355,19 @@ excluded.
 
 Allergen exclusion is a hard SQL filter, never a prompt instruction. An allergen miss is
 a safety incident, and a prompt is not a safety control.
+
+Preferences come in two strengths and the interface says which is which:
+
+- **Hard** — excluded allergens, diet categories, disliked foods. Filtered before scoring;
+  nothing overrides them. A recipe whose ingredient categories we cannot classify is
+  excluded too: a vegan is better served by a shorter list than a wrong one.
+- **Soft** — liked foods, worth `LIKED_WEIGHT = 0.15` in units of plan error, folded into
+  one objective used by BOTH solver passes. Greedy and local search optimising different
+  objectives is how a solver undoes its own good choices. A like breaks ties; it cannot
+  buy a worse plan, and a 20% calorie miss already costs more than the whole term.
+
+The reported `PlanResult.error` stays the pure distance from target. A figure that
+secretly included a taste penalty would not mean what it says.
 
 ---
 
@@ -598,6 +616,25 @@ average is truncated at both ends, which pulls the endpoints inward and
 understated the trend by 11% on a month of daily readings. Found by a test whose
 expectation was computed by hand rather than from a run.
 
-**Component and E2E tests were specified and not written.** TESTING.md describes
-both layers. Neither exists. That is a gap, not a change of plan - see
-PRODUCTION.md B6.
+**Component tests exist; E2E tests do not.** TESTING.md describes both layers.
+The component layer now covers the scan review, the auth form and the screen
+header. E2E is still absent - a gap, not a change of plan; see PRODUCTION.md B6.
+
+**Only `(tabs)` was guarded.** Every screen outside it - `/search`, `/food/[id]`,
+`/scan`, `/barcode`, `/workout/[id]` - was reachable signed out, and
+`useRequireUserId` threw on the first render. Found by loading `/programs` in a
+signed-out browser while verifying a new route. Fixed by moving them into an
+`(app)` group with one guard layout: route groups cost nothing in the URL, and a
+screen added there cannot forget the check.
+
+**Exercise substitution is derived, not curated.** The plan implied a table of
+alternatives. A hand-maintained N-by-N table over 40 exercises is always half
+empty, and the missing half is the half people ask for. `movement_pattern` on
+`exercises` plus a ranking function covers every exercise with no per-pair
+maintenance - and ranks better, because `primary_muscle` alone would offer a
+lateral raise in place of an overhead press.
+
+**The diet picker offers four options, not six.** `user_diet_settings.diet`
+accepts keto and mediterranean. Neither is a list of forbidden categories, so
+neither is something the solver can enforce, and a setting that silently does
+nothing is worse than an absent one. The column keeps them for later.

@@ -254,12 +254,21 @@ breaks `tsc`, not production.
 
 ## 9. Current state
 
-- **pgTAP: 56 tests, passing against the real local Supabase stack** (`npm run db:test`)
-- **Jest: 133 tests, passing.** `src/domain/nutrition` is at 100% statements, functions
-  and lines, 98.3% branches — above the 95/90 gate. The two uncovered branches are
-  unreachable defensive guards that protect against a future constant change.
+- **pgTAP: 146 tests, passing against the real local Supabase stack** (`npm run db:test`)
+- **Jest: 374 tests across 19 suites, passing.** `src/domain/nutrition` is at 100%
+  statements, functions and lines, 98.3% branches — above the 95/90 gate. The two
+  uncovered branches are unreachable defensive guards that protect against a future
+  constant change.
+- Component tests: scan review, auth form, screen header
 - Local harness: 46 assertions (`npm run db:verify:local`)
 - Maestro: not yet set up; arrives with the first complete user journey
+
+### Three bugs the suites found
+
+**An assertion can pass for the wrong reason.** The programme test checked, as user B,
+that A's squat had survived B's failed swap — but RLS hides A's row from B either way, so
+the count was zero and the test failed. Had it been written the other way round it would
+have passed while proving nothing. The check now runs as A.
 
 ### Two bugs the suites found in themselves
 

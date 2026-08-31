@@ -430,6 +430,25 @@ user_diet_settings    (user_id, diet text, excluded_allergens smallint[], cuisin
 `target_snapshot` freezes the targets the plan was generated against, so a plan stays
 self-consistent even after the user changes their goal mid-week.
 
+`meal_plan_candidates` carries `category_slugs` alongside the aggregated allergens, so a
+diet setting can be enforced over what a recipe is MADE OF rather than what it is called.
+The picker offers omnivore, vegetarian, vegan and pescatarian only: keto and mediterranean
+are shapes of a macro split, not lists of forbidden categories, and the column accepting
+them does not mean the solver can honour them.
+
+The three preference strengths are not interchangeable:
+
+| Setting            | Strength | Effect on the solver                       |
+| ------------------ | -------- | ------------------------------------------ |
+| Excluded allergen  | hard     | Filtered in SQL **and** in the solver      |
+| Diet category      | hard     | Filtered in the solver; unknown = excluded |
+| Disliked food      | hard     | Filtered in the solver                     |
+| Liked food         | soft     | Worth 0.15 in units of plan error          |
+
+A like breaks ties between recipes that already fit. It cannot buy a worse plan — a 20 %
+calorie miss costs more than the entire preference term is worth, and there is a test that
+says so.
+
 ---
 
 ## 9. Workouts
@@ -460,6 +479,48 @@ stored copy is another thing that can disagree with reality.
 
 Primary index: `workout_sets (user_id, completed_at desc)` for history, plus
 `(session_exercise_id, set_number)` for the session screen.
+
+### Programmes
+
+```sql
+programs           (id, slug unique, name, author, focus, experience, days_per_week,
+                    description, sort_order, is_public)
+program_days       (id, program_id, day_index, name)      -- position in the rotation
+program_exercises  (id, program_day_id, exercise_id, sort_order, target_sets,
+                    target_reps, rest_seconds, note)
+```
+
+Read-only reference data, like `foods`. Adopting a programme **copies** one day into the
+user's own `workouts` (`adopt_program_day`), recording `workouts.source_program_id` for
+display. Copying rather than referencing is what makes swapping an exercise an edit to
+the user's plan instead of a fork of shared data, and it stops a catalogue change
+rewriting a plan someone is three weeks into.
+
+`day_index` is a position in the rotation, not a weekday. StrongLifts runs A/B/A then
+B/A/B; pinning it to Monday would be wrong by the second week.
+
+No weights are stored. Every one of these programmes sets load from the lifter's own
+performance, and a seeded figure would be a number invented for a person we have never
+met.
+
+### Substitution
+
+`exercises.movement_pattern` drives `suggest_alternatives(exercise, limit)`, which ranks
+replacements: same pattern **and** muscle (1), same pattern (2), same muscle (3), easier
+first within a rank. Derived rather than curated — a hand-maintained N-by-N table is
+always half empty and the missing half is the half people ask for. An exercise with no
+pattern returns same-muscle matches only; one that matches nothing returns an empty list
+rather than an unrelated lift.
+
+Two multi-table operations are functions rather than client-side inserts, because a
+template with half its exercises, or a session missing three of them, is worse than one
+that failed to be created:
+
+- `adopt_program_day(program, day_index) -> workout id`
+- `start_session_from_workout(workout) -> session id`
+
+Both are `security invoker` and insert with `auth.uid()`, so RLS decides who ends up
+owning the result.
 
 ---
 
