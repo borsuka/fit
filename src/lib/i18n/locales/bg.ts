@@ -219,6 +219,16 @@ const bg: Translations = {
     signOut: 'Изход',
   },
 
+  barcode: {
+    title: 'Сканирай баркод',
+    aim: 'Насочи камерата към баркода на опаковката.',
+    looking: 'Търсим {{code}}…',
+    enterManually: 'Потърси я ръчно',
+    permissionTitle: 'Нужен е достъп до камерата',
+    permissionBody:
+      'Камерата ни трябва, за да прочетем баркода. Нищо не се качва — изпраща се само номерът от опаковката.',
+  },
+
   validation: {
     age_below_minimum: 'Трябва да си на поне 18 години.',
     age_above_maximum: 'Въведи валидна възраст.',

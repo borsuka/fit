@@ -96,7 +96,7 @@ npm run typecheck && npm run lint && npm run depcruise && npm test
 npm run db:reset && npm run db:test
 ```
 
-The pgTAP suite assumes a clean database, so reset first. Current state: 294
+The pgTAP suite assumes a clean database, so reset first. Current state: 323
 Jest tests (25 component), 125 pgTAP assertions, all green.
 
 Adding a table means adding its RLS policies **and** its pgTAP test in the same change.

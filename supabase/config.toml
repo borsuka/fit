@@ -432,3 +432,7 @@ verify_jwt = true
 [functions.data-lifecycle]
 enabled = true
 verify_jwt = false
+
+[functions.lookup-barcode]
+enabled = true
+verify_jwt = true

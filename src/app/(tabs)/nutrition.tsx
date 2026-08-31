@@ -25,6 +25,13 @@ export default function NutritionTab() {
         size="lg"
         onPress={() => router.push({ pathname: '/scan', params: { mealType: 'lunch' } })}
       />
+      <Button
+        label={t('barcode.title')}
+        variant="secondary"
+        fullWidth
+        size="lg"
+        onPress={() => router.push({ pathname: '/barcode', params: { mealType: 'lunch' } })}
+      />
 
       <Text variant="title">{t('common.search')}</Text>
       <View style={{ gap: theme.spacing.md }}>

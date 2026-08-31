@@ -219,6 +219,16 @@ const en = {
     signOut: 'Sign out',
   },
 
+  barcode: {
+    title: 'Scan a barcode',
+    aim: 'Point the camera at the barcode on the packet.',
+    looking: 'Looking up {{code}}…',
+    enterManually: 'Search for it instead',
+    permissionTitle: 'Camera access needed',
+    permissionBody:
+      'We need the camera to read the barcode. Nothing is uploaded — only the number on the packet is sent.',
+  },
+
   validation: {
     age_below_minimum: 'You must be at least 18 to use this app.',
     age_above_maximum: 'Please enter a valid age.',

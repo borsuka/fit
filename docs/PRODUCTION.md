@@ -19,6 +19,7 @@ verified by running it; everything else is listed as what it is.
 | Auth, onboarding, targets | working end to end |
 | Nutrition engine | 1920-case invariant matrix, 100% statements |
 | Food search, diary | working; 57 seeded foods |
+| Barcode lookup | Open Food Facts write-through, 29 tests on the mapping |
 | AI scan pipeline | function boots and gates auth; **vendor call unexercised** |
 | Meal plan solver | 26 tests; 12 seeded recipes |
 | Workouts | 40 exercises, session logging, progression advice |
@@ -32,7 +33,7 @@ Gates, all green as of this commit:
 tsc --noEmit                exit 0
 expo lint                   exit 0, 0 errors
 depcruise src               exit 0, 104 modules
-jest                        294 tests (25 of them component tests)
+jest                        323 tests (25 of them component tests)
 supabase test db            125 pgTAP tests
 ```
 
@@ -101,16 +102,28 @@ the edge function reads entitlement from it. Nothing writes it.
 Needed: RevenueCat products, the webhook function, signature verification, and
 store configuration.
 
-### B5 — Food corpus is a starter set
+### B5 — Food corpus is a starter set (barcode half done)
 
-57 curated foods, not the USDA import decision D-2 calls for. Search works;
-coverage does not. "My food isn't here" is the top abandonment cause for a
-tracker.
+**Done:** the Open Food Facts write-through path. `lookup-barcode` checks our
+own `foods` first, fetches OFF on a miss, validates, and caches with
+`data_quality: 2` so search ranks curated and USDA entries above it. A cached
+OFF row is refetched after 90 days, because OFF corrects entries continually and
+a wrong calorie figure cached forever is the failure this app cannot absorb.
 
-Needed: the USDA Foundation/SR Legacy importer, and the Open Food Facts
-write-through path on barcode miss. **The ODbL question must be settled first** —
-caching for our own users is straightforward, redistributing a derived database
-is not.
+The mapping lives in `shared/off-contracts/product.ts` with 29 tests against the
+real API response, including the one that matters most: **OFF reports sodium in
+grams and we store milligrams**. Missing that conversion understates sodium a
+thousandfold, which for anyone watching blood pressure is the difference between
+a useful number and a dangerous one.
+
+**Still needed:** the USDA Foundation/SR Legacy import (~8,000 public-domain
+entries). 57 curated foods plus barcode lookup covers packaged goods and common
+whole foods; it does not cover the long tail.
+
+**The ODbL question is still open** and now matters more, because we are
+actively caching OFF data. Caching for our own users is straightforward;
+redistributing a derived database is not. Attribution belongs in the app
+regardless.
 
 ### B6 — Component tests started, E2E still missing
 
