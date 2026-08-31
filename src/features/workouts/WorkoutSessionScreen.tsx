@@ -21,7 +21,7 @@ import {
   logSet,
   type SessionView,
 } from '@/services/workouts/workoutService';
-import { Button, Card, Screen, Text, TextField, useTheme } from '@/ui';
+import { Button, Card, Screen, ScreenHeader, Text, TextField, useTheme } from '@/ui';
 
 /** Smallest plate step in a typical gym. A suggestion the user cannot load is
  *  not a suggestion; this becomes a per-exercise setting later. */
@@ -67,9 +67,11 @@ export function WorkoutSessionScreen({ sessionId }: { sessionId: string }) {
 
   const session = sessionQuery.data ?? null;
 
+  const header = <ScreenHeader fallbackHref="/workouts" />;
+
   if (sessionQuery.isLoading) {
     return (
-      <Screen>
+      <Screen header={header}>
         <Text variant="body" tone="muted">
           {t('common.loading')}
         </Text>
@@ -79,7 +81,7 @@ export function WorkoutSessionScreen({ sessionId }: { sessionId: string }) {
 
   if (session === null) {
     return (
-      <Screen>
+      <Screen header={header}>
         <Card>
           <Text variant="body" tone="danger" accessibilityRole="alert">
             {sessionQuery.isError ? toMessage(sessionQuery.error) : t('errors.not_found')}
@@ -92,6 +94,7 @@ export function WorkoutSessionScreen({ sessionId }: { sessionId: string }) {
   return (
     <Screen
       scroll
+      header={header}
       footer={
         session.endedAt === null ? (
           <Button

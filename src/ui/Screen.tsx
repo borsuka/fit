@@ -9,6 +9,9 @@ export interface ScreenProps {
   scroll?: boolean;
   /** Sticks to the bottom above the keyboard - primary actions live here. */
   footer?: ReactNode;
+  /** Rendered above the content and OUTSIDE the scroll view, so the way out
+   *  stays reachable however far the user has scrolled. */
+  header?: ReactNode;
   contentStyle?: ViewStyle;
 }
 
@@ -19,7 +22,7 @@ export interface ScreenProps {
  * is invisible on a large phone and hides the submit button on a small one -
  * the exact device most likely to be someone's only device.
  */
-export function Screen({ children, scroll = false, footer, contentStyle }: ScreenProps) {
+export function Screen({ children, scroll = false, footer, header, contentStyle }: ScreenProps) {
   const theme = useTheme();
 
   const padding = {
@@ -47,6 +50,11 @@ export function Screen({ children, scroll = false, footer, contentStyle }: Scree
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
+        {header === undefined ? null : (
+          <View style={{ paddingHorizontal: theme.spacing.lg, paddingTop: theme.spacing.sm }}>
+            {header}
+          </View>
+        )}
         {body}
         {footer === undefined ? null : (
           <View

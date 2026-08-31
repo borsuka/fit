@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Pressable, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { toLocalDate } from '@/domain/dates/localDate';
 import { useRequireUserId } from '@/features/auth/SessionProvider';
@@ -18,7 +19,7 @@ import {
   type ScanItemView,
 } from '@/services/ai/scanService';
 import type { MealType } from '@/services/diary/diaryService';
-import { Button, Card, Screen, Text, useTheme } from '@/ui';
+import { Button, Card, Screen, ScreenHeader, Text, useTheme } from '@/ui';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { ScanReview } from './ScanReview';
@@ -51,6 +52,14 @@ export function ScanFlow({ mealType }: { mealType: MealType }) {
   const [error, setError] = useState<unknown>(null);
 
   const handleSelection = useCallback((next: readonly ConfirmedItem[]) => setSelected(next), []);
+
+  /** Leaving mid-analysis is allowed: the scan row stays pending and the
+   *  lifecycle worker expires the photo. Trapping someone on a spinner while a
+   *  vendor call runs is worse than an orphaned row. */
+  const handleClose = (): void => {
+    if (router.canGoBack()) router.back();
+    else router.replace('/nutrition');
+  };
 
   const reset = (): void => {
     setStage('camera');
@@ -101,7 +110,7 @@ export function ScanFlow({ mealType }: { mealType: MealType }) {
 
   if (permission === null) {
     return (
-      <Screen>
+      <Screen header={<ScreenHeader fallbackHref="/nutrition" />}>
         <ActivityIndicator color={theme.colors.primary} />
       </Screen>
     );
@@ -109,7 +118,7 @@ export function ScanFlow({ mealType }: { mealType: MealType }) {
 
   if (!permission.granted) {
     return (
-      <Screen>
+      <Screen header={<ScreenHeader fallbackHref="/nutrition" />}>
         <Text variant="title">{t('scan.permissionTitle')}</Text>
         <Text variant="body" tone="muted">
           {t('scan.permissionBody')}
@@ -123,6 +132,7 @@ export function ScanFlow({ mealType }: { mealType: MealType }) {
     return (
       <Screen
         scroll
+        header={<ScreenHeader fallbackHref="/nutrition" />}
         footer={
           <>
             {error === null ? null : (
@@ -174,6 +184,17 @@ export function ScanFlow({ mealType }: { mealType: MealType }) {
   return (
     <View style={{ flex: 1, backgroundColor: '#000' }}>
       <CameraView ref={cameraRef} style={{ flex: 1 }} facing="back" />
+
+      {/* Over the camera, not in a header: the preview is full-bleed, so the
+          only way out has to float on top of it. Top-left is where a back
+          affordance is expected on both platforms. */}
+      <View style={{ position: 'absolute', top: 0, left: 0, right: 0 }}>
+        <SafeAreaView edges={['top']}>
+          <View style={{ paddingHorizontal: theme.spacing.sm }}>
+            <ScreenHeader fallbackHref="/nutrition" onBack={handleClose} />
+          </View>
+        </SafeAreaView>
+      </View>
 
       <View
         style={{

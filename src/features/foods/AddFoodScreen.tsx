@@ -9,7 +9,7 @@ import { useAddFood } from '@/features/diary/hooks';
 import { useProfile } from '@/features/profile/hooks';
 import { useErrorMessage } from '@/lib/i18n/useErrorMessage';
 import type { MealType } from '@/services/diary/diaryService';
-import { Button, Card, Screen, Text, useTheme } from '@/ui';
+import { Button, Card, Screen, ScreenHeader, Text, useTheme } from '@/ui';
 
 import { useFood } from './hooks';
 import { PortionPicker } from './PortionPicker';
@@ -59,9 +59,11 @@ export function AddFoodScreen({ foodId, mealType }: { foodId: string; mealType: 
     );
   };
 
+  const header = <ScreenHeader fallbackHref="/nutrition" />;
+
   if (foodQuery.isLoading) {
     return (
-      <Screen>
+      <Screen header={header}>
         <View style={{ padding: theme.spacing.xl, alignItems: 'center' }}>
           <ActivityIndicator color={theme.colors.primary} />
         </View>
@@ -71,7 +73,7 @@ export function AddFoodScreen({ foodId, mealType }: { foodId: string; mealType: 
 
   if (foodQuery.isError || foodQuery.data === null || foodQuery.data === undefined) {
     return (
-      <Screen>
+      <Screen header={header}>
         <Card>
           <Text variant="body" tone="danger" accessibilityRole="alert">
             {foodQuery.isError ? toMessage(foodQuery.error) : t('errors.not_found')}
@@ -87,6 +89,7 @@ export function AddFoodScreen({ foodId, mealType }: { foodId: string; mealType: 
   return (
     <Screen
       scroll
+      header={header}
       footer={
         <>
           {addFood.isError ? (

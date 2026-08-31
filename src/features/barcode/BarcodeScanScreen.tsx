@@ -4,12 +4,13 @@ import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { AppError } from '@/lib/errors';
 import { useErrorMessage } from '@/lib/i18n/useErrorMessage';
 import { lookupBarcode, type BarcodeResult } from '@/services/foods/barcodeService';
 import type { MealType } from '@/services/diary/diaryService';
-import { Button, Card, Screen, Text, useTheme } from '@/ui';
+import { Button, Card, Screen, ScreenHeader, Text, useTheme } from '@/ui';
 
 /**
  * Point the camera at a barcode.
@@ -45,6 +46,11 @@ export function BarcodeScanScreen({ mealType }: { mealType: MealType }) {
     },
   });
 
+  const handleClose = (): void => {
+    if (router.canGoBack()) router.back();
+    else router.replace('/nutrition');
+  };
+
   const onScanned = (code: string): void => {
     if (handled.current) return;
     handled.current = true;
@@ -54,7 +60,7 @@ export function BarcodeScanScreen({ mealType }: { mealType: MealType }) {
 
   if (permission === null) {
     return (
-      <Screen>
+      <Screen header={<ScreenHeader fallbackHref="/nutrition" />}>
         <ActivityIndicator color={theme.colors.primary} />
       </Screen>
     );
@@ -62,7 +68,7 @@ export function BarcodeScanScreen({ mealType }: { mealType: MealType }) {
 
   if (!permission.granted) {
     return (
-      <Screen>
+      <Screen header={<ScreenHeader fallbackHref="/nutrition" />}>
         <Text variant="title">{t('barcode.permissionTitle')}</Text>
         <Text variant="body" tone="muted">
           {t('barcode.permissionBody')}
@@ -82,6 +88,17 @@ export function BarcodeScanScreen({ mealType }: { mealType: MealType }) {
         barcodeScannerSettings={{ barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e'] }}
         onBarcodeScanned={lookup.isPending ? undefined : (event) => onScanned(event.data)}
       />
+
+      {/* Over the camera, not in a header: the preview is full-bleed, so the
+          only way out has to float on top of it. Top-left is where a back
+          affordance is expected on both platforms. */}
+      <View style={{ position: 'absolute', top: 0, left: 0, right: 0 }}>
+        <SafeAreaView edges={['top']}>
+          <View style={{ paddingHorizontal: theme.spacing.sm }}>
+            <ScreenHeader fallbackHref="/nutrition" onBack={handleClose} />
+          </View>
+        </SafeAreaView>
+      </View>
 
       <View
         style={{

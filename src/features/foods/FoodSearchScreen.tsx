@@ -7,7 +7,7 @@ import { useRequireUserId } from '@/features/auth/SessionProvider';
 import { useErrorMessage } from '@/lib/i18n/useErrorMessage';
 import type { MealType } from '@/services/diary/diaryService';
 import type { FoodSearchResult } from '@/services/foods/foodService';
-import { Button, Card, Screen, Text, TextField, useTheme } from '@/ui';
+import { Button, Card, Screen, ScreenHeader, Text, TextField, useTheme } from '@/ui';
 
 import { useFoodSearch, useRecentFoods } from './hooks';
 
@@ -65,7 +65,7 @@ export function FoodSearchScreen({ mealType }: { mealType: MealType }) {
   );
 
   return (
-    <Screen>
+    <Screen header={<ScreenHeader title={t('common.search')} fallbackHref="/nutrition" />}>
       <TextField
         label={t('common.search')}
         placeholder={t('portion.searchPlaceholder')}

@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, View } from 'react-native';
+import { Pressable } from 'react-native';
 
 import { useRequireUserId } from '@/features/auth/SessionProvider';
 import type { AppError } from '@/lib/errors';
