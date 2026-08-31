@@ -404,6 +404,7 @@ export type Database = {
           id: string;
           instructions: string | null;
           is_public: boolean;
+          movement_pattern: Database['public']['Enums']['movement_pattern'] | null;
           name: string;
           primary_muscle: string;
           secondary_muscles: string[];
@@ -418,6 +419,7 @@ export type Database = {
           id?: string;
           instructions?: string | null;
           is_public?: boolean;
+          movement_pattern?: Database['public']['Enums']['movement_pattern'] | null;
           name: string;
           primary_muscle: string;
           secondary_muscles?: string[];
@@ -432,6 +434,7 @@ export type Database = {
           id?: string;
           instructions?: string | null;
           is_public?: boolean;
+          movement_pattern?: Database['public']['Enums']['movement_pattern'] | null;
           name?: string;
           primary_muscle?: string;
           secondary_muscles?: string[];
@@ -1256,6 +1259,125 @@ export type Database = {
         };
         Relationships: [];
       };
+      program_days: {
+        Row: {
+          day_index: number;
+          id: string;
+          name: string;
+          program_id: string;
+        };
+        Insert: {
+          day_index: number;
+          id?: string;
+          name: string;
+          program_id: string;
+        };
+        Update: {
+          day_index?: number;
+          id?: string;
+          name?: string;
+          program_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'program_days_program_id_fkey';
+            columns: ['program_id'];
+            isOneToOne: false;
+            referencedRelation: 'programs';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      program_exercises: {
+        Row: {
+          exercise_id: string;
+          id: string;
+          note: string | null;
+          program_day_id: string;
+          rest_seconds: number | null;
+          sort_order: number;
+          target_reps: number;
+          target_sets: number;
+        };
+        Insert: {
+          exercise_id: string;
+          id?: string;
+          note?: string | null;
+          program_day_id: string;
+          rest_seconds?: number | null;
+          sort_order?: number;
+          target_reps: number;
+          target_sets: number;
+        };
+        Update: {
+          exercise_id?: string;
+          id?: string;
+          note?: string | null;
+          program_day_id?: string;
+          rest_seconds?: number | null;
+          sort_order?: number;
+          target_reps?: number;
+          target_sets?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'program_exercises_exercise_id_fkey';
+            columns: ['exercise_id'];
+            isOneToOne: false;
+            referencedRelation: 'exercises';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'program_exercises_program_day_id_fkey';
+            columns: ['program_day_id'];
+            isOneToOne: false;
+            referencedRelation: 'program_days';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      programs: {
+        Row: {
+          author: string | null;
+          created_at: string;
+          days_per_week: number;
+          description: string;
+          experience: number;
+          focus: string;
+          id: string;
+          is_public: boolean;
+          name: string;
+          slug: string;
+          sort_order: number;
+        };
+        Insert: {
+          author?: string | null;
+          created_at?: string;
+          days_per_week: number;
+          description: string;
+          experience: number;
+          focus: string;
+          id?: string;
+          is_public?: boolean;
+          name: string;
+          slug: string;
+          sort_order?: number;
+        };
+        Update: {
+          author?: string | null;
+          created_at?: string;
+          days_per_week?: number;
+          description?: string;
+          experience?: number;
+          focus?: string;
+          id?: string;
+          is_public?: boolean;
+          name?: string;
+          slug?: string;
+          sort_order?: number;
+        };
+        Relationships: [];
+      };
       push_tokens: {
         Row: {
           platform: string;
@@ -1853,6 +1975,7 @@ export type Database = {
           is_template: boolean;
           name: string;
           note: string | null;
+          source_program_id: string | null;
           updated_at: string;
           user_id: string;
         };
@@ -1862,6 +1985,7 @@ export type Database = {
           is_template?: boolean;
           name: string;
           note?: string | null;
+          source_program_id?: string | null;
           updated_at?: string;
           user_id?: string;
         };
@@ -1871,10 +1995,18 @@ export type Database = {
           is_template?: boolean;
           name?: string;
           note?: string | null;
+          source_program_id?: string | null;
           updated_at?: string;
           user_id?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: 'workouts_source_program_id_fkey';
+            columns: ['source_program_id'];
+            isOneToOne: false;
+            referencedRelation: 'programs';
+            referencedColumns: ['id'];
+          },
           {
             foreignKeyName: 'workouts_user_id_fkey';
             columns: ['user_id'];
@@ -1930,6 +2062,10 @@ export type Database = {
       };
     };
     Functions: {
+      adopt_program_day: {
+        Args: { p_day_index: number; p_program_id: string };
+        Returns: string;
+      };
       consume_ai_quota: {
         Args: {
           p_feature: string;
@@ -2021,6 +2157,22 @@ export type Database = {
           isSetofReturn: false;
         };
       };
+      start_session_from_workout: {
+        Args: { p_workout_id: string };
+        Returns: string;
+      };
+      suggest_alternatives: {
+        Args: { p_exercise_id: string; p_limit?: number };
+        Returns: {
+          difficulty: number;
+          equipment: string;
+          id: string;
+          match_rank: number;
+          name: string;
+          primary_muscle: string;
+          slug: string;
+        }[];
+      };
     };
     Enums: {
       activity_level: 'sedentary' | 'light' | 'moderate' | 'very' | 'extra';
@@ -2030,6 +2182,17 @@ export type Database = {
       food_source: 'usda' | 'off' | 'user' | 'curated';
       goal_type: 'lose' | 'maintain' | 'gain' | 'muscle_gain';
       meal_type: 'breakfast' | 'lunch' | 'dinner' | 'snack';
+      movement_pattern:
+        | 'horizontal_push'
+        | 'vertical_push'
+        | 'horizontal_pull'
+        | 'vertical_pull'
+        | 'squat'
+        | 'hinge'
+        | 'lunge'
+        | 'core'
+        | 'isolation'
+        | 'conditioning';
       scan_status: 'pending' | 'analyzing' | 'matched' | 'confirmed' | 'failed' | 'discarded';
       sex_at_birth: 'male' | 'female';
       subscription_status: 'active' | 'trialing' | 'grace' | 'expired' | 'cancelled';
@@ -2162,6 +2325,18 @@ export const Constants = {
       food_source: ['usda', 'off', 'user', 'curated'],
       goal_type: ['lose', 'maintain', 'gain', 'muscle_gain'],
       meal_type: ['breakfast', 'lunch', 'dinner', 'snack'],
+      movement_pattern: [
+        'horizontal_push',
+        'vertical_push',
+        'horizontal_pull',
+        'vertical_pull',
+        'squat',
+        'hinge',
+        'lunge',
+        'core',
+        'isolation',
+        'conditioning',
+      ],
       scan_status: ['pending', 'analyzing', 'matched', 'confirmed', 'failed', 'discarded'],
       sex_at_birth: ['male', 'female'],
       subscription_status: ['active', 'trialing', 'grace', 'expired', 'cancelled'],

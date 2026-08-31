@@ -245,6 +245,42 @@ const en = {
     advice_deload: 'Stalled for a while — drop to {{weight}} kg and build back up.',
   },
 
+  programs: {
+    title: 'Training programmes',
+    body: 'Established programmes, credited to the people who wrote them. Take a day into your own plans and change whatever does not suit you.',
+    browse: 'Browse programmes',
+    by: 'by {{author}}',
+    daysPerWeek_one: '{{count}} day a week',
+    daysPerWeek_other: '{{count}} days a week',
+    focus_strength: 'strength',
+    focus_hypertrophy: 'size',
+    focus_general: 'general fitness',
+    level_1: 'beginner',
+    level_2: 'intermediate',
+    level_3: 'advanced',
+    addDay: 'Add to my plans',
+    loadingNote:
+      'No weights are prescribed. Every one of these programmes sets load from your own performance, and a number we invented for you would not be one.',
+  },
+
+  templates: {
+    mine: 'My plans',
+    noneYet: 'No plans yet. Take one from a programme, or build your own.',
+    build: 'Build my own',
+    newName: 'My plan',
+    exerciseCount_one: '{{count}} exercise',
+    exerciseCount_other: '{{count}} exercises',
+    empty: 'Nothing in this plan yet.',
+    addExercise: 'Add an exercise',
+    swap: 'Swap',
+    swapTo: 'Replace with',
+    match_1: 'same movement, same muscle',
+    match_2: 'same movement',
+    match_3: 'same muscle',
+    noAlternatives: 'No close match in the library for this one.',
+    start: 'Start this workout',
+  },
+
   progress: {
     title: 'Progress',
     todayWeight: "Today's weight",

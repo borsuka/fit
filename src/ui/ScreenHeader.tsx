@@ -1,4 +1,5 @@
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { Pressable, View } from 'react-native';
 
 import { Text } from './Text';
@@ -31,6 +32,10 @@ export interface ScreenHeaderProps {
 export function ScreenHeader({ title, fallbackHref, onBack, trailing }: ScreenHeaderProps) {
   const theme = useTheme();
   const router = useRouter();
+  // The one string in the design system. The rest of the kit takes its text
+  // from props, but a back control has no caller-specific label and a
+  // hard-coded English one would be read out to a Bulgarian screen-reader user.
+  const { t } = useTranslation();
 
   const handleBack = (): void => {
     if (onBack !== undefined) {
@@ -55,7 +60,7 @@ export function ScreenHeader({ title, fallbackHref, onBack, trailing }: ScreenHe
     >
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Back"
+        accessibilityLabel={t('common.back')}
         onPress={handleBack}
         hitSlop={12}
         style={({ pressed }) => ({
