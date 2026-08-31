@@ -107,6 +107,18 @@ naming the variable, rather than surfacing as a null reference three screens lat
 
 `.env` is git-ignored; `.env.example` documents every key with no values.
 
+### What is kept on the device
+
+| Value | Store | Why |
+|---|---|---|
+| Refresh token | keychain (`expo-secure-store`), localStorage on web | Mints access tokens indefinitely; a plain-text copy is account takeover from a readable file |
+| Last signed-in email | same adapter | Personal data, so it goes where the token goes rather than in plain text beside it |
+| Password | **nowhere** | Never stored, never read back. Offering a saved one is the OS keychain's job, requested through `autoComplete="current-password"` |
+
+The remembered address survives sign-out on purpose — signing out is not disowning the
+device — and is cleared when the account is deleted, because "delete everything" has to
+include it.
+
 ---
 
 ## 4. T3 — Entitlements
