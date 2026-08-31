@@ -436,3 +436,10 @@ verify_jwt = false
 [functions.lookup-barcode]
 enabled = true
 verify_jwt = true
+
+# RevenueCat has no user session, so verify_jwt is off. Authorisation is the
+# shared secret set in their dashboard, compared in constant time inside the
+# function. An unset secret denies.
+[functions.revenuecat-webhook]
+enabled = true
+verify_jwt = false

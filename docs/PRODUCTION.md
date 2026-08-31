@@ -1,8 +1,8 @@
 # Production Readiness
 
 **Last updated:** 2026-08-31
-**Status: not shippable.** Three blockers remain, two are closed and one is
-partly done. They are real
+**Status: not shippable.** One blocker fully open (no AI vendor), the rest
+closed or reduced to configuration. They are real
 constraints, not paperwork.
 
 This is an honest ledger, not a victory lap. Everything marked done was
@@ -14,12 +14,13 @@ verified by running it; everything else is listed as what it is.
 
 | Area | State |
 |---|---|
-| Database schema, 17 migrations | applied from zero against Supabase Postgres 17 |
+| Database schema, 18 migrations | applied from zero against Supabase Postgres 17 |
 | RLS on every table | 125 pgTAP assertions, both directions, real stack |
 | Auth, onboarding, targets | working end to end |
 | Nutrition engine | 1920-case invariant matrix, 100% statements |
 | Food search, diary | working; 57 seeded foods |
 | Barcode lookup | Open Food Facts write-through, 29 tests on the mapping |
+| Subscriptions | RevenueCat webhook, lifecycle verified; store setup outstanding |
 | AI scan pipeline | function boots and gates auth; **vendor call unexercised** |
 | Meal plan solver | 26 tests; 12 seeded recipes |
 | Workouts | 40 exercises, session logging, progression advice |
@@ -33,7 +34,7 @@ Gates, all green as of this commit:
 tsc --noEmit                exit 0
 expo lint                   exit 0, 0 errors
 depcruise src               exit 0, 104 modules
-jest                        323 tests (25 of them component tests)
+jest                        352 tests (25 of them component tests)
 supabase test db            125 pgTAP tests
 ```
 
@@ -94,13 +95,38 @@ the user's corrections are what has lasting value.
 a row from `storage.objects` does not remove the underlying file. Deleting there
 would leave the bytes on disk and the record gone - the worst of both.
 
-### B4 — Subscriptions are a schema, not a system
+### ~~B4 — Subscriptions are a schema, not a system~~ (closed, except store setup)
 
-`subscriptions` exists with the correct write posture (service_role only), and
-the edge function reads entitlement from it. Nothing writes it.
+`revenuecat-webhook` is now the only writer of `subscriptions`, and the whole
+lifecycle was exercised against the real stack:
 
-Needed: RevenueCat products, the webhook function, signature verification, and
-store configuration.
+```
+INITIAL_PURCHASE (ev 2000)  -> applied      premium | active
+EXPIRATION       (ev 1000)  -> stale_event  premium | active   <- redelivery ignored
+CANCELLATION     (ev 3000)  -> applied      premium | cancelled
+EXPIRATION       (ev 4000)  -> applied      free    | expired
+unknown user                -> unknown_user, acknowledged not retried
+```
+
+Three decisions worth knowing:
+
+- **CANCELLATION keeps access.** On every store it means "do not renew", and the
+  user keeps what they paid for until the period ends. EXPIRATION arrives later
+  to do the actual withdrawing.
+- **BILLING_ISSUE keeps access** and sets `grace`. The store is retrying
+  payment; cutting someone off mid-retry punishes an expired card.
+- **An unrecognised event type is refused, not defaulted.** Falling through to
+  "premium" would be a free subscription for anyone who could invent an event
+  name. It returns 200 so RevenueCat stops retrying, and logs loudly.
+
+Event ordering is explicit (`subscriptions.last_event_ms`). Webhooks arrive out
+of order and get redelivered, and without this a retried EXPIRATION landing
+after a RENEWAL downgrades a paying customer - who notices only that the feature
+they pay for stopped working.
+
+**Still needed:** RevenueCat account, products configured in App Store Connect
+and Play Console, the client SDK wired to set `app_user_id` to our auth user id,
+and the webhook secret set in both places.
 
 ### B5 — Food corpus is a starter set (barcode half done)
 
@@ -168,7 +194,7 @@ device or emulator, so the flows can be written here but not run.
 
 - [ ] 18+ age rating, matching the domain policy (D-3)
 - [ ] Camera usage string reviewed — it is user-facing copy, not a formality
-- [ ] Subscription disclosure per store rules
+- [ ] Subscription disclosure per store rules (webhook built; products are not)
 - [ ] Account deletion reachable in-app — built; verify the schedule is live
 - [ ] **No health claims anywhere in the listing.** Every number this app
       produces is an estimate from a population formula, and the copy says so

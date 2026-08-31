@@ -101,6 +101,7 @@ export type Database = {
           meal_id: string | null;
           model: string | null;
           output_tokens: number | null;
+          photo_deleted_at: string | null;
           prompt_version: string | null;
           provider: string | null;
           status: Database['public']['Enums']['scan_status'];
@@ -120,6 +121,7 @@ export type Database = {
           meal_id?: string | null;
           model?: string | null;
           output_tokens?: number | null;
+          photo_deleted_at?: string | null;
           prompt_version?: string | null;
           provider?: string | null;
           status?: Database['public']['Enums']['scan_status'];
@@ -139,6 +141,7 @@ export type Database = {
           meal_id?: string | null;
           model?: string | null;
           output_tokens?: number | null;
+          photo_deleted_at?: string | null;
           prompt_version?: string | null;
           provider?: string | null;
           status?: Database['public']['Enums']['scan_status'];
@@ -312,6 +315,24 @@ export type Database = {
             referencedColumns: ['id'];
           },
         ];
+      };
+      deletion_audit: {
+        Row: {
+          completed_at: string;
+          id: string;
+          requested_at: string;
+        };
+        Insert: {
+          completed_at?: string;
+          id?: string;
+          requested_at: string;
+        };
+        Update: {
+          completed_at?: string;
+          id?: string;
+          requested_at?: string;
+        };
+        Relationships: [];
       };
       deletion_requests: {
         Row: {
@@ -1520,6 +1541,8 @@ export type Database = {
         Row: {
           current_period_end: string | null;
           is_trial: boolean;
+          last_event_id: string | null;
+          last_event_ms: number | null;
           product_id: string | null;
           rc_app_user_id: string | null;
           status: Database['public']['Enums']['subscription_status'];
@@ -1531,6 +1554,8 @@ export type Database = {
         Insert: {
           current_period_end?: string | null;
           is_trial?: boolean;
+          last_event_id?: string | null;
+          last_event_ms?: number | null;
           product_id?: string | null;
           rc_app_user_id?: string | null;
           status?: Database['public']['Enums']['subscription_status'];
@@ -1542,6 +1567,8 @@ export type Database = {
         Update: {
           current_period_end?: string | null;
           is_trial?: boolean;
+          last_event_id?: string | null;
+          last_event_ms?: number | null;
           product_id?: string | null;
           rc_app_user_id?: string | null;
           status?: Database['public']['Enums']['subscription_status'];
@@ -1911,6 +1938,14 @@ export type Database = {
         };
         Returns: boolean;
       };
+      expired_photo_paths: {
+        Args: { p_limit?: number };
+        Returns: {
+          image_path: string;
+          scan_id: string;
+        }[];
+      };
+      export_user_data: { Args: { p_user_id: string }; Returns: Json };
       match_scan_items: {
         Args: { p_scan_id: string };
         Returns: {
