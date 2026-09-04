@@ -1,4 +1,5 @@
 import { AppError } from '@/lib/errors';
+import { DEFAULT_LOCALE, type Locale } from '@/lib/i18n/locale';
 import { supabase, type Tables } from '@/services/supabase/client';
 import { mapPostgrestError, mapUnknownError } from '@/services/supabase/errors';
 
@@ -51,7 +52,10 @@ export const listPrograms = async (): Promise<ProgramRow[]> => {
   }
 };
 
-export const getProgram = async (programId: string): Promise<ProgramDetail | null> => {
+export const getProgram = async (
+  programId: string,
+  locale: Locale = DEFAULT_LOCALE,
+): Promise<ProgramDetail | null> => {
   try {
     const { data: program, error: programError } = await supabase
       .from('programs')
@@ -65,8 +69,9 @@ export const getProgram = async (programId: string): Promise<ProgramDetail | nul
     const { data: days, error: daysError } = await supabase
       .from('program_days')
       .select(
-        'id, day_index, name, program_exercises(id, exercise_id, sort_order, target_sets, target_reps, rest_seconds, exercises(name, primary_muscle, equipment))',
+        'id, day_index, name, program_exercises(id, exercise_id, sort_order, target_sets, target_reps, rest_seconds, exercises(name, primary_muscle, equipment, exercise_translations(name)))',
       )
+      .eq('program_exercises.exercises.exercise_translations.locale', locale)
       .eq('program_id', programId)
       .order('day_index', { ascending: true });
 
@@ -82,7 +87,7 @@ export const getProgram = async (programId: string): Promise<ProgramDetail | nul
           .map((row) => ({
             id: row.id,
             exerciseId: row.exercise_id,
-            name: row.exercises?.name ?? '',
+            name: row.exercises?.exercise_translations[0]?.name ?? row.exercises?.name ?? '',
             primaryMuscle: row.exercises?.primary_muscle ?? '',
             equipment: row.exercises?.equipment ?? '',
             sortOrder: row.sort_order,
@@ -166,13 +171,17 @@ export const listTemplates = async (userId: string): Promise<TemplateSummary[]> 
   }
 };
 
-export const getTemplate = async (workoutId: string): Promise<TemplateView | null> => {
+export const getTemplate = async (
+  workoutId: string,
+  locale: Locale = DEFAULT_LOCALE,
+): Promise<TemplateView | null> => {
   try {
     const { data, error } = await supabase
       .from('workouts')
       .select(
-        'id, name, source_program_id, workout_exercises(id, exercise_id, sort_order, target_sets, target_reps, rest_seconds, exercises(name, primary_muscle, equipment))',
+        'id, name, source_program_id, workout_exercises(id, exercise_id, sort_order, target_sets, target_reps, rest_seconds, exercises(name, primary_muscle, equipment, exercise_translations(name)))',
       )
+      .eq('workout_exercises.exercises.exercise_translations.locale', locale)
       .eq('id', workoutId)
       .maybeSingle();
 
@@ -187,7 +196,7 @@ export const getTemplate = async (workoutId: string): Promise<TemplateView | nul
         .map((row) => ({
           id: row.id,
           exerciseId: row.exercise_id,
-          name: row.exercises?.name ?? '',
+          name: row.exercises?.exercise_translations[0]?.name ?? row.exercises?.name ?? '',
           primaryMuscle: row.exercises?.primary_muscle ?? '',
           equipment: row.exercises?.equipment ?? '',
           sortOrder: row.sort_order,
@@ -316,12 +325,14 @@ export interface AlternativeExercise {
 
 export const suggestAlternatives = async (
   exerciseId: string,
+  locale: Locale = DEFAULT_LOCALE,
   limit = 8,
 ): Promise<AlternativeExercise[]> => {
   try {
     const { data, error } = await supabase.rpc('suggest_alternatives', {
       p_exercise_id: exerciseId,
       p_limit: limit,
+      p_locale: locale,
     });
 
     if (error !== null) throw mapPostgrestError(error);

@@ -10,6 +10,7 @@ import { useRequireUserId } from '@/features/auth/SessionProvider';
 import { useActiveGoal, useProfile } from '@/features/profile/hooks';
 import type { AppError } from '@/lib/errors';
 import { useErrorMessage } from '@/lib/i18n/useErrorMessage';
+import { useLocale } from '@/lib/i18n/useLocale';
 import {
   buildPlan,
   getDietSettings,
@@ -26,6 +27,7 @@ export function MealPlanScreen() {
   const theme = useTheme();
   const router = useRouter();
   const userId = useRequireUserId();
+  const locale = useLocale();
   const toMessage = useErrorMessage();
 
   const profileQuery = useProfile(userId);
@@ -51,6 +53,7 @@ export function MealPlanScreen() {
         userId,
         startDate: today,
         settings,
+        locale,
         targets: {
           calories: targets.calories,
           proteinG: targets.proteinG,

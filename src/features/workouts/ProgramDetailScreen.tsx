@@ -6,6 +6,7 @@ import { View } from 'react-native';
 import { useRequireUserId } from '@/features/auth/SessionProvider';
 import type { AppError } from '@/lib/errors';
 import { useErrorMessage } from '@/lib/i18n/useErrorMessage';
+import { useLocale } from '@/lib/i18n/useLocale';
 import {
   adoptProgramDay,
   getProgram,
@@ -25,13 +26,14 @@ export function ProgramDetailScreen({ programId }: { programId: string }) {
   const theme = useTheme();
   const router = useRouter();
   const userId = useRequireUserId();
+  const locale = useLocale();
   const toMessage = useErrorMessage();
   const queryClient = useQueryClient();
 
   const programQuery = useQuery<ProgramDetail | null, AppError>({
-    queryKey: ['program', programId],
+    queryKey: ['program', programId, locale],
     staleTime: 60 * 60_000,
-    queryFn: () => getProgram(programId),
+    queryFn: () => getProgram(programId, locale),
   });
 
   const adopt = useMutation<string, AppError, number>({

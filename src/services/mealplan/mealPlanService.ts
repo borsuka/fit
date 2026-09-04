@@ -8,6 +8,7 @@ import {
   type PlanResult,
 } from '@/domain/mealplan';
 import type { LocalDate } from '@/domain/dates/localDate';
+import { DEFAULT_LOCALE, type Locale } from '@/lib/i18n/locale';
 import { AppError } from '@/lib/errors';
 import { supabase } from '@/services/supabase/client';
 import { mapPostgrestError, mapUnknownError } from '@/services/supabase/errors';
@@ -152,12 +153,13 @@ export const setFoodPreference = async (
 
 export const getCandidates = async (
   excludedAllergenIds: readonly number[],
+  locale: Locale = DEFAULT_LOCALE,
 ): Promise<MealCandidate[]> => {
   try {
     let query = supabase
       .from('meal_plan_candidates')
       .select(
-        'recipe_id, name, kcal, protein_g, carbs_g, fat_g, meal_slots, allergen_ids, food_ids, category_slugs, prep_minutes',
+        'recipe_id, name, kcal, protein_g, carbs_g, fat_g, meal_slots, allergen_ids, food_ids, category_slugs, translations, prep_minutes',
       );
 
     if (excludedAllergenIds.length > 0) {
@@ -171,7 +173,9 @@ export const getCandidates = async (
 
     return (data ?? []).map((row) => ({
       recipeId: row.recipe_id as string,
-      name: row.name as string,
+      // A locale -> name map on the view, so a third language costs a seed row
+      // rather than another column. Falls back to the recipe's own name.
+      name: (row.translations as Record<string, string> | null)?.[locale] ?? (row.name as string),
       kcal: Number(row.kcal),
       proteinG: Number(row.protein_g),
       carbsG: Number(row.carbs_g),
@@ -203,11 +207,12 @@ export interface BuildPlanInput {
   readonly targets: DayTargets;
   readonly startDate: LocalDate;
   readonly settings: DietSettings;
+  readonly locale?: Locale | undefined;
 }
 
 export const buildPlan = async (input: BuildPlanInput): Promise<PlanResult> => {
   const [candidates, preferences] = await Promise.all([
-    getCandidates(input.settings.excludedAllergenIds),
+    getCandidates(input.settings.excludedAllergenIds, input.locale),
     getFoodPreferences(input.userId),
   ]);
 

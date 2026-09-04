@@ -7,6 +7,7 @@ import { Pressable, View } from 'react-native';
 import { useRequireUserId } from '@/features/auth/SessionProvider';
 import type { AppError } from '@/lib/errors';
 import { useErrorMessage } from '@/lib/i18n/useErrorMessage';
+import { useLocale } from '@/lib/i18n/useLocale';
 import { queryKeys } from '@/lib/queryClient';
 import {
   addTemplateExercise,
@@ -34,6 +35,7 @@ export function TemplateScreen({ workoutId }: { workoutId: string }) {
   const theme = useTheme();
   const router = useRouter();
   const userId = useRequireUserId();
+  const locale = useLocale();
   const toMessage = useErrorMessage();
   const queryClient = useQueryClient();
 
@@ -42,8 +44,8 @@ export function TemplateScreen({ workoutId }: { workoutId: string }) {
   const [query, setQuery] = useState('');
 
   const templateQuery = useQuery<TemplateView | null, AppError>({
-    queryKey: ['template', workoutId],
-    queryFn: () => getTemplate(workoutId),
+    queryKey: ['template', workoutId, locale],
+    queryFn: () => getTemplate(workoutId, locale),
   });
 
   const template = templateQuery.data;
@@ -214,11 +216,12 @@ function AlternativeList({
 }) {
   const { t } = useTranslation();
   const theme = useTheme();
+  const locale = useLocale();
 
   const alternativesQuery = useQuery<AlternativeExercise[], AppError>({
-    queryKey: ['alternatives', exerciseId],
+    queryKey: ['alternatives', exerciseId, locale],
     staleTime: 60 * 60_000,
-    queryFn: () => suggestAlternatives(exerciseId),
+    queryFn: () => suggestAlternatives(exerciseId, locale),
   });
 
   const alternatives = alternativesQuery.data ?? [];
@@ -280,10 +283,11 @@ function ExerciseSearchResults({
   onPick: (exerciseId: string) => void;
 }) {
   const theme = useTheme();
+  const locale = useLocale();
 
   const exercisesQuery = useQuery<ExerciseRow[], AppError>({
-    queryKey: ['exercises', query.trim()],
-    queryFn: () => searchExercises(query),
+    queryKey: ['exercises', query.trim(), locale],
+    queryFn: () => searchExercises(query, locale),
   });
 
   return (

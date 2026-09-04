@@ -209,6 +209,61 @@ select is(
   3,
   'the limit is honoured');
 
+-- ---------------------------------------------------------------------------
+-- Names in the user's language
+-- ---------------------------------------------------------------------------
+-- exercise_translations had existed since 0008 with 25 rows that nothing ever
+-- read, and searchExercises was an ILIKE over the English name - so "клек"
+-- found nothing while the Bulgarian row for it sat in the table.
+
+select is(
+  (select name from public.search_exercises('back squat', 1, 'bg')),
+  'Клек с щанга',
+  'an exercise comes back in the requested locale');
+
+select isnt_empty(
+  $q$select id from public.search_exercises('клек', 20, 'bg')$q$,
+  'a Bulgarian query finds exercises - the case that used to return nothing');
+
+select isnt_empty(
+  $q$select id from public.search_exercises('squat', 20, 'bg')$q$,
+  'an English query still works for a user reading Bulgarian');
+
+select isnt_empty(
+  $q$select id from public.search_exercises('леж', 20, 'bg')$q$,
+  'a Bulgarian prefix matches while the user is still typing');
+
+select is(
+  (select count(*)::int from public.search_exercises(null, 100, 'bg')),
+  (select count(*)::int from public.exercises where is_public),
+  'an empty query browses the whole public library rather than returning nothing');
+
+select is(
+  (select name from public.suggest_alternatives(
+     (select id from public.exercises where slug = 'back-squat'), 1, 'bg')),
+  'Лег преса',
+  'substitutions are localised too - a picker in one language is the bug this fixes');
+
+select is_empty(
+  $q$select e.slug from public.exercises e
+      where e.is_public
+        and not exists (select 1 from public.exercise_translations t
+                         where t.exercise_id = e.id and t.locale = 'bg')$q$,
+  'every public exercise has a Bulgarian name');
+
+select is_empty(
+  $q$select r.name from public.recipes r
+      where r.is_public
+        and not exists (select 1 from public.recipe_translations t
+                         where t.recipe_id = r.id and t.locale = 'bg')$q$,
+  'every public recipe has a Bulgarian name');
+
+select is_empty(
+  $q$select r.name from public.recipes r
+      join public.recipe_translations t on t.recipe_id = r.id and t.locale = 'bg'
+     where r.is_public and coalesce(btrim(t.instructions), '') = ''$q$,
+  'and Bulgarian instructions - a translated name over an English method looks finished and is not');
+
 reset role;
 select set_config('request.jwt.claims', '', true);
 set local role anon;

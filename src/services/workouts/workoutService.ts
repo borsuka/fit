@@ -1,8 +1,23 @@
 import type { WorkSet } from '@/domain/workouts/strength';
+import { DEFAULT_LOCALE, type Locale } from '@/lib/i18n/locale';
 import { supabase, type Tables } from '@/services/supabase/client';
 import { mapPostgrestError, mapUnknownError } from '@/services/supabase/errors';
 
-export type ExerciseRow = Tables<'exercises'>;
+/**
+ * An exercise as a picker shows it: the name already in the user's language.
+ *
+ * Not `Tables<'exercises'>` any more. That row carries the English name, and a
+ * type that lets a screen render `.name` without thinking is how the English
+ * leaked into a Bulgarian interface in the first place.
+ */
+export interface ExerciseRow {
+  readonly id: string;
+  readonly slug: string;
+  readonly name: string;
+  readonly primary_muscle: string;
+  readonly equipment: string;
+  readonly difficulty: number;
+}
 
 export interface SessionExerciseView {
   readonly id: string;
@@ -19,15 +34,41 @@ export interface SessionView {
   readonly exercises: readonly SessionExerciseView[];
 }
 
-export const searchExercises = async (query: string, limit = 30): Promise<ExerciseRow[]> => {
+/**
+ * Exercise search, in either language.
+ *
+ * Was an ILIKE over the English name, which meant "клек" found nothing while
+ * the Bulgarian row for it sat unused in exercise_translations. The RPC
+ * matches name and translations in every language and returns the name in the
+ * one asked for. An empty query browses the whole library rather than
+ * returning nothing - the picker has to be usable before anyone types.
+ */
+export const searchExercises = async (
+  query: string,
+  locale: Locale = DEFAULT_LOCALE,
+  limit = 30,
+): Promise<ExerciseRow[]> => {
   try {
     const term = query.trim();
-    let request = supabase.from('exercises').select('*').order('name').limit(limit);
-    if (term.length > 0) request = request.ilike('name', `%${term}%`);
+    const { data, error } = await supabase.rpc('search_exercises', {
+      // Omitted rather than passed as null, so the function's own default
+      // applies. exactOptionalPropertyTypes forbids assigning undefined, and a
+      // literal null is not what the generated type accepts either.
+      ...(term.length === 0 ? {} : { p_query: term }),
+      p_limit: limit,
+      p_locale: locale,
+    });
 
-    const { data, error } = await request;
     if (error !== null) throw mapPostgrestError(error);
-    return data ?? [];
+
+    return (data ?? []).map((row) => ({
+      id: row.id,
+      slug: row.slug,
+      name: row.name,
+      primary_muscle: row.primary_muscle,
+      equipment: row.equipment,
+      difficulty: row.difficulty,
+    }));
   } catch (e) {
     throw mapUnknownError(e);
   }
@@ -131,16 +172,20 @@ export const finishSession = async (sessionId: string, startedAt: string): Promi
   }
 };
 
-export const getSession = async (sessionId: string): Promise<SessionView | null> => {
+export const getSession = async (
+  sessionId: string,
+  locale: Locale = DEFAULT_LOCALE,
+): Promise<SessionView | null> => {
   try {
     const { data, error } = await supabase
       .from('workout_sessions')
       .select(
         `id, name, started_at, ended_at,
          session_exercises ( id, exercise_id, sort_order,
-           exercises ( name ),
+           exercises ( name, exercise_translations ( name ) ),
            workout_sets ( id, set_number, reps, weight_kg, is_warmup ) )`,
       )
+      .eq('session_exercises.exercises.exercise_translations.locale', locale)
       .eq('id', sessionId)
       .maybeSingle();
 
@@ -157,7 +202,10 @@ export const getSession = async (sessionId: string): Promise<SessionView | null>
         .map((exercise) => ({
           id: exercise.id,
           exerciseId: exercise.exercise_id,
-          name: exercise.exercises?.name ?? 'Exercise',
+          name:
+            exercise.exercises?.exercise_translations[0]?.name ??
+            exercise.exercises?.name ??
+            'Exercise',
           sets: [...(exercise.workout_sets ?? [])]
             .sort((a, b) => a.set_number - b.set_number)
             .map((s) => ({

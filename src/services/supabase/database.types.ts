@@ -1463,6 +1463,49 @@ export type Database = {
           },
         ];
       };
+      recipe_translations: {
+        Row: {
+          instructions: string | null;
+          locale: string;
+          name: string;
+          recipe_id: string;
+        };
+        Insert: {
+          instructions?: string | null;
+          locale: string;
+          name: string;
+          recipe_id: string;
+        };
+        Update: {
+          instructions?: string | null;
+          locale?: string;
+          name?: string;
+          recipe_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'recipe_translations_recipe_id_fkey';
+            columns: ['recipe_id'];
+            isOneToOne: false;
+            referencedRelation: 'meal_plan_candidates';
+            referencedColumns: ['recipe_id'];
+          },
+          {
+            foreignKeyName: 'recipe_translations_recipe_id_fkey';
+            columns: ['recipe_id'];
+            isOneToOne: false;
+            referencedRelation: 'recipe_nutrition';
+            referencedColumns: ['recipe_id'];
+          },
+          {
+            foreignKeyName: 'recipe_translations_recipe_id_fkey';
+            columns: ['recipe_id'];
+            isOneToOne: false;
+            referencedRelation: 'recipes';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       recipes: {
         Row: {
           cook_minutes: number | null;
@@ -2032,6 +2075,7 @@ export type Database = {
           prep_minutes: number | null;
           protein_g: number | null;
           recipe_id: string | null;
+          translations: Json | null;
           user_id: string | null;
         };
         Relationships: [
@@ -2100,6 +2144,20 @@ export type Database = {
         };
         Returns: undefined;
       };
+      search_exercises: {
+        Args: { p_limit?: number; p_locale?: string; p_query?: string };
+        Returns: {
+          difficulty: number;
+          equipment: string;
+          id: string;
+          movement_pattern: Database['public']['Enums']['movement_pattern'];
+          name: string;
+          primary_muscle: string;
+          score: number;
+          secondary_muscles: string[];
+          slug: string;
+        }[];
+      };
       search_foods: {
         Args: { p_limit?: number; p_locale?: string; p_query: string };
         Returns: {
@@ -2163,7 +2221,7 @@ export type Database = {
         Returns: string;
       };
       suggest_alternatives: {
-        Args: { p_exercise_id: string; p_limit?: number };
+        Args: { p_exercise_id: string; p_limit?: number; p_locale?: string };
         Returns: {
           difficulty: number;
           equipment: string;
