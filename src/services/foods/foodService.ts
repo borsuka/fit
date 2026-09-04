@@ -1,3 +1,4 @@
+import { DEFAULT_LOCALE, type Locale } from '@/lib/i18n/locale';
 import { supabase, type Enums, type Tables } from '@/services/supabase/client';
 import { mapPostgrestError, mapUnknownError } from '@/services/supabase/errors';
 
@@ -34,15 +35,23 @@ export interface FoodDetail extends FoodSearchResult {
  * client: ranking three signals is SQL's job, and doing it here would mean
  * fetching candidates over the network to sort them on a phone.
  */
-export const searchFoods = async (query: string, limit = 25): Promise<FoodSearchResult[]> => {
+export const searchFoods = async (
+  query: string,
+  locale: Locale = DEFAULT_LOCALE,
+  limit = 25,
+): Promise<FoodSearchResult[]> => {
   const term = query.trim();
   // Saves a round trip on every keystroke that clears the box.
   if (term.length === 0) return [];
 
   try {
+    // The locale decides only what the row is CALLED. Matching still runs
+    // against every language, because a user whose phone is in Bulgarian may
+    // well type "chicken".
     const { data, error } = await supabase.rpc('search_foods', {
       p_query: term,
       p_limit: limit,
+      p_locale: locale,
     });
     if (error) throw mapPostgrestError(error);
 
@@ -72,13 +81,19 @@ export const searchFoods = async (query: string, limit = 25): Promise<FoodSearch
  * id order passed in: the caller's order is arbitrary, and alphabetical is the
  * only order a reader can predict.
  */
-export const getFoodsByIds = async (foodIds: readonly string[]): Promise<FoodSearchResult[]> => {
+export const getFoodsByIds = async (
+  foodIds: readonly string[],
+  locale: Locale = DEFAULT_LOCALE,
+): Promise<FoodSearchResult[]> => {
   if (foodIds.length === 0) return [];
 
   try {
     const { data, error } = await supabase
       .from('foods')
-      .select('id, name, brand, kcal_100g, protein_100g, carbs_100g, fat_100g, fiber_100g, source')
+      .select(
+        'id, name, brand, kcal_100g, protein_100g, carbs_100g, fat_100g, fiber_100g, source, food_translations(name)',
+      )
+      .eq('food_translations.locale', locale)
       .in('id', [...foodIds])
       .order('name');
 
@@ -86,7 +101,10 @@ export const getFoodsByIds = async (foodIds: readonly string[]): Promise<FoodSea
 
     return (data ?? []).map((row) => ({
       id: row.id,
-      name: row.name,
+      // The embedded filter keeps only this locale's row, so there is at most
+      // one. Falling back to the catalogue name is what makes a food with no
+      // translation still readable rather than blank.
+      name: row.food_translations[0]?.name ?? row.name,
       brand: row.brand,
       kcal100g: Number(row.kcal_100g),
       protein100g: Number(row.protein_100g),
@@ -102,14 +120,19 @@ export const getFoodsByIds = async (foodIds: readonly string[]): Promise<FoodSea
   }
 };
 
-export const getFood = async (foodId: string): Promise<FoodDetail | null> => {
+export const getFood = async (
+  foodId: string,
+  locale: Locale = DEFAULT_LOCALE,
+): Promise<FoodDetail | null> => {
   try {
     const { data, error } = await supabase
       .from('foods')
       .select(
         `id, name, brand, kcal_100g, protein_100g, carbs_100g, fat_100g, fiber_100g,
-         source, density_g_ml, food_servings ( id, label, grams, is_default )`,
+         source, density_g_ml, food_servings ( id, label, grams, is_default ),
+         food_translations ( name )`,
       )
+      .eq('food_translations.locale', locale)
       .eq('id', foodId)
       .maybeSingle();
 
@@ -118,7 +141,7 @@ export const getFood = async (foodId: string): Promise<FoodDetail | null> => {
 
     return {
       id: data.id,
-      name: data.name,
+      name: data.food_translations[0]?.name ?? data.name,
       brand: data.brand,
       kcal100g: Number(data.kcal_100g),
       protein100g: Number(data.protein_100g),
@@ -149,15 +172,21 @@ export const getFood = async (foodId: string): Promise<FoodDetail | null> => {
  * and a separate list would be one more thing to keep in sync - and to get
  * wrong when an entry is deleted.
  */
-export const getRecentFoods = async (userId: string, limit = 20): Promise<FoodSearchResult[]> => {
+export const getRecentFoods = async (
+  userId: string,
+  locale: Locale = DEFAULT_LOCALE,
+  limit = 20,
+): Promise<FoodSearchResult[]> => {
   try {
     const { data, error } = await supabase
       .from('meal_items')
       .select(
         `food_id, created_at,
          foods!inner ( id, name, brand, kcal_100g, protein_100g, carbs_100g, fat_100g,
-                       fiber_100g, source, archived_at )`,
+                       fiber_100g, source, archived_at,
+                       food_translations ( name ) )`,
       )
+      .eq('foods.food_translations.locale', locale)
       .eq('user_id', userId)
       .not('food_id', 'is', null)
       .order('created_at', { ascending: false })
@@ -179,7 +208,7 @@ export const getRecentFoods = async (userId: string, limit = 20): Promise<FoodSe
 
       results.push({
         id: food.id,
-        name: food.name,
+        name: food.food_translations[0]?.name ?? food.name,
         brand: food.brand,
         kcal100g: Number(food.kcal_100g),
         protein100g: Number(food.protein_100g),

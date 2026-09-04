@@ -2101,7 +2101,7 @@ export type Database = {
         Returns: undefined;
       };
       search_foods: {
-        Args: { p_limit?: number; p_query: string };
+        Args: { p_limit?: number; p_locale?: string; p_query: string };
         Returns: {
           brand: string;
           carbs_100g: number;

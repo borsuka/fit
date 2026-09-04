@@ -53,11 +53,22 @@ export const queryKeys = {
   profile: (userId: string) => ['profile', userId] as const,
   activeGoal: (userId: string) => ['goal', userId, 'active'] as const,
 
-  diaryDay: (userId: string, localDate: string) => ['diary', userId, localDate] as const,
-  recentFoods: (userId: string) => ['foods', userId, 'recent'] as const,
+  // Locale is part of the key wherever a food NAME is in the result. Without
+  // it, switching language serves the English names react-query already cached
+  // and nothing looks broken until the user reads them.
+  //
+  // No default: an omitted locale would silently build a DIFFERENT key from the
+  // one the query registered under, which for setQueryData means an optimistic
+  // update that writes to nothing. The `*Prefix` forms are the deliberate way
+  // to address every locale at once, which is what invalidation wants.
+  diaryDay: (userId: string, localDate: string, locale: string) =>
+    ['diary', userId, localDate, locale] as const,
+  diaryDayPrefix: (userId: string, localDate: string) => ['diary', userId, localDate] as const,
+  recentFoods: (userId: string, locale: string) => ['foods', userId, 'recent', locale] as const,
+  recentFoodsPrefix: (userId: string) => ['foods', userId, 'recent'] as const,
   favoriteFoods: (userId: string) => ['foods', userId, 'favorites'] as const,
-  foodSearch: (query: string) => ['foods', 'search', query] as const,
-  food: (foodId: string) => ['foods', 'detail', foodId] as const,
+  foodSearch: (query: string, locale: string) => ['foods', 'search', query, locale] as const,
+  food: (foodId: string, locale: string) => ['foods', 'detail', foodId, locale] as const,
 
   weightLogs: (userId: string) => ['weight', userId] as const,
   workoutSessions: (userId: string) => ['workouts', userId, 'sessions'] as const,

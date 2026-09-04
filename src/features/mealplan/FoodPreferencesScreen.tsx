@@ -7,6 +7,7 @@ import { useRequireUserId } from '@/features/auth/SessionProvider';
 import { useFoodSearch } from '@/features/foods/hooks';
 import type { AppError } from '@/lib/errors';
 import { useErrorMessage } from '@/lib/i18n/useErrorMessage';
+import { useLocale } from '@/lib/i18n/useLocale';
 import {
   getFoodPreferences,
   setFoodPreference,
@@ -30,6 +31,7 @@ export function FoodPreferencesScreen() {
   const { t } = useTranslation();
   const theme = useTheme();
   const userId = useRequireUserId();
+  const locale = useLocale();
   const toMessage = useErrorMessage();
   const queryClient = useQueryClient();
 
@@ -48,8 +50,8 @@ export function FoodPreferencesScreen() {
   // by the id list: adding a preference changes the key and refetches, which is
   // what makes a newly marked food appear in the list below.
   const markedFoodsQuery = useQuery<FoodSearchResult[], AppError>({
-    queryKey: ['foodsByIds', [...markedIds].sort()],
-    queryFn: () => getFoodsByIds(markedIds),
+    queryKey: ['foodsByIds', [...markedIds].sort(), locale],
+    queryFn: () => getFoodsByIds(markedIds, locale),
     enabled: markedIds.length > 0,
   });
 

@@ -100,7 +100,9 @@ export function ScanFlow({ mealType }: { mealType: MealType }) {
     try {
       const localDate = toLocalDate(profileQuery.data?.timezone ?? 'UTC');
       await confirmScan({ userId, scanId, localDate, mealType, items: selected });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.diaryDay(userId, localDate) });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.diaryDayPrefix(userId, localDate),
+      });
       router.back();
     } catch (e) {
       setError(e);

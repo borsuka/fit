@@ -254,7 +254,7 @@ breaks `tsc`, not production.
 
 ## 9. Current state
 
-- **pgTAP: 157 tests, passing against the real local Supabase stack** (`npm run db:test`)
+- **pgTAP: 164 tests, passing against the real local Supabase stack** (`npm run db:test`)
 - **Jest: 379 tests across 19 suites, passing.** `src/domain/nutrition` is at 100%
   statements, functions and lines, 98.3% branches — above the 95/90 gate. The two
   uncovered branches are unreachable defensive guards that protect against a future

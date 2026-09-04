@@ -1,5 +1,6 @@
 import { scaleNutrition, type NutritionAmount, type NutritionPer100g } from '@/domain/nutrition';
 import type { LocalDate } from '@/domain/dates/localDate';
+import { DEFAULT_LOCALE, type Locale } from '@/lib/i18n/locale';
 import { supabase, type Enums, type Tables } from '@/services/supabase/client';
 import { mapPostgrestError, mapUnknownError } from '@/services/supabase/errors';
 
@@ -31,7 +32,11 @@ export const MEAL_TYPES: readonly MealType[] = ['breakfast', 'lunch', 'dinner', 
  * trips from a phone on mobile data is four chances to be slow, and the day's
  * totals cannot render until the last one lands.
  */
-export const getDiaryDay = async (userId: string, localDate: LocalDate): Promise<DiaryDay> => {
+export const getDiaryDay = async (
+  userId: string,
+  localDate: LocalDate,
+  locale: Locale = DEFAULT_LOCALE,
+): Promise<DiaryDay> => {
   try {
     const [mealsResult, logResult] = await Promise.all([
       supabase
@@ -39,8 +44,9 @@ export const getDiaryDay = async (userId: string, localDate: LocalDate): Promise
         .select(
           `id, meal_type,
            meal_items ( id, custom_name, quantity_g, kcal, protein_g, carbs_g, fat_g, fiber_g,
-                        food_id, foods ( name, brand ) )`,
+                        food_id, foods ( name, brand, food_translations ( name ) ) )`,
         )
+        .eq('meal_items.foods.food_translations.locale', locale)
         .eq('user_id', userId)
         .eq('local_date', localDate),
       supabase
@@ -60,9 +66,14 @@ export const getDiaryDay = async (userId: string, localDate: LocalDate): Promise
         items.push({
           id: item.id,
           mealType: meal.meal_type,
-          // The stored custom_name wins, then the joined food name. The food
-          // may have been archived since; the snapshot is what was eaten.
-          name: item.custom_name ?? item.foods?.name ?? 'Unknown food',
+          // The stored custom_name wins, then the translated food name, then
+          // the catalogue name. The food may have been archived since; the
+          // nutrition snapshot is what was eaten either way.
+          name:
+            item.custom_name ??
+            item.foods?.food_translations[0]?.name ??
+            item.foods?.name ??
+            'Unknown food',
           quantityG: Number(item.quantity_g),
           foodId: item.food_id,
           nutrition: {

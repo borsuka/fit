@@ -19,6 +19,11 @@ import { useFoodSearch, useRecentFoods } from './hooks';
  * every morning is the difference between a tool used daily and one abandoned
  * in a week.
  */
+/** True when the matched alias is already visible in the name, or absent. */
+const redundantAlias = (item: FoodSearchResult): boolean =>
+  item.matchedAlias === null ||
+  item.name.toLocaleLowerCase().includes(item.matchedAlias.toLocaleLowerCase());
+
 export function FoodSearchScreen({ mealType }: { mealType: MealType }) {
   const { t } = useTranslation();
   const theme = useTheme();
@@ -61,10 +66,12 @@ export function FoodSearchScreen({ mealType }: { mealType: MealType }) {
         {item.name}
       </Text>
       <Text variant="caption" tone="muted" numberOfLines={1}>
-        {/* The catalogue name is English. When a Bulgarian alias is what
-            matched, showing it is the difference between a list that looks
-            wrong and one that explains itself. */}
-        {item.matchedAlias === null ? '' : `${item.matchedAlias} · `}
+        {/* Only when it ADDS something. Names are shown in the user's language,
+            so a Bulgarian searching "кюфте" already sees "Кюфте (печено)" and
+            repeating the term underneath is noise. It earns its place when the
+            two languages differ - an English speaker searching "кюфте", or a
+            Bulgarian searching "yogurt". */}
+        {redundantAlias(item) ? '' : `${item.matchedAlias ?? ''} · `}
         {item.brand === null ? '' : `${item.brand} · `}
         {Math.round(item.kcal100g)} kcal / 100 g
       </Text>

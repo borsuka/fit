@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tan
 
 import type { LocalDate } from '@/domain/dates/localDate';
 import type { AppError } from '@/lib/errors';
+import { useLocale } from '@/lib/i18n/useLocale';
 import { queryKeys } from '@/lib/queryClient';
 import {
   addFoodToMeal,
@@ -15,12 +16,15 @@ import {
 export const useDiaryDay = (
   userId: string | null,
   localDate: LocalDate,
-): UseQueryResult<DiaryDay, AppError> =>
-  useQuery({
-    queryKey: queryKeys.diaryDay(userId ?? 'anonymous', localDate),
-    queryFn: () => getDiaryDay(userId as string, localDate),
+): UseQueryResult<DiaryDay, AppError> => {
+  const locale = useLocale();
+
+  return useQuery({
+    queryKey: queryKeys.diaryDay(userId ?? 'anonymous', localDate, locale),
+    queryFn: () => getDiaryDay(userId as string, localDate, locale),
     enabled: userId !== null,
   });
+};
 
 /**
  * Mutations invalidate the day they touched, by key, rather than clearing
@@ -34,9 +38,9 @@ export const useAddFood = () => {
     mutationFn: addFoodToMeal,
     onSuccess: (_data, input) => {
       void queryClient.invalidateQueries({
-        queryKey: queryKeys.diaryDay(input.userId, input.localDate),
+        queryKey: queryKeys.diaryDayPrefix(input.userId, input.localDate),
       });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.recentFoods(input.userId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.recentFoodsPrefix(input.userId) });
     },
   });
 };
@@ -47,13 +51,18 @@ export const useDeleteMealItem = (userId: string, localDate: LocalDate) => {
   return useMutation<void, AppError, string>({
     mutationFn: deleteMealItem,
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.diaryDay(userId, localDate) });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.diaryDayPrefix(userId, localDate),
+      });
     },
   });
 };
 
 export const useSetWater = (userId: string, localDate: LocalDate) => {
   const queryClient = useQueryClient();
+  // The EXACT key the day query registered under. An optimistic write to a key
+  // that differs by one element updates nothing and fails silently.
+  const locale = useLocale();
 
   return useMutation<void, AppError, number>({
     mutationFn: (waterMl) => setWater(userId, localDate, waterMl),
@@ -61,7 +70,7 @@ export const useSetWater = (userId: string, localDate: LocalDate) => {
     // moves on the tap rather than after a round trip; on failure the previous
     // value is restored and the refetch below settles the truth.
     onMutate: async (waterMl) => {
-      const key = queryKeys.diaryDay(userId, localDate);
+      const key = queryKeys.diaryDay(userId, localDate, locale);
       await queryClient.cancelQueries({ queryKey: key });
       const previous = queryClient.getQueryData<DiaryDay>(key);
       if (previous !== undefined) {
@@ -72,11 +81,13 @@ export const useSetWater = (userId: string, localDate: LocalDate) => {
     onError: (_error, _waterMl, context) => {
       const previous = (context as { previous?: DiaryDay } | undefined)?.previous;
       if (previous !== undefined) {
-        queryClient.setQueryData(queryKeys.diaryDay(userId, localDate), previous);
+        queryClient.setQueryData(queryKeys.diaryDay(userId, localDate, locale), previous);
       }
     },
     onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.diaryDay(userId, localDate) });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.diaryDayPrefix(userId, localDate),
+      });
     },
   });
 };

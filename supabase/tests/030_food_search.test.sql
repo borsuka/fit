@@ -195,6 +195,62 @@ select is_empty(
   $q$select id from public.search_foods('   ', 25)$q$,
   'a blank query returns nothing rather than the whole catalogue');
 
+-- ---------------------------------------------------------------------------
+-- Localised names
+-- ---------------------------------------------------------------------------
+-- Aliases made a food findable in Bulgarian; translations make it readable.
+-- The locale decides only what a row is CALLED - matching still runs against
+-- every language, because a user whose phone is in Bulgarian may well type
+-- "chicken", and refusing them for a settings value would be a worse search
+-- for no benefit.
+
+select is(
+  (select name from public.search_foods('chicken breast', 1, 'bg')),
+  'Пилешко филе, без кожа, готвено',
+  'the name comes back in the requested locale');
+
+select is(
+  (select name from public.search_foods('chicken breast', 1, 'en')),
+  'Chicken breast, skinless, cooked',
+  'and in English when that is what was asked for');
+
+select isnt_empty(
+  $q$select id from public.search_foods('chicken', 25, 'bg')$q$,
+  'an English query still works for a user reading Bulgarian');
+
+select isnt_empty(
+  $q$select id from public.search_foods('без кожа', 25, 'bg')$q$,
+  'a translation is searchable too - "без кожа" appears in no alias');
+
+select is(
+  (select name from public.search_foods('chicken breast', 1, 'klingon')),
+  'Chicken breast, skinless, cooked',
+  'an unknown locale falls back to the catalogue name rather than erroring');
+
+-- Written as a query over the catalogue rather than a list of examples, so a
+-- food seeded later without a Bulgarian name fails here instead of turning up
+-- in someone's diary in English.
+select is_empty(
+  $q$select f.name
+       from public.foods f
+      where f.is_public
+        and f.archived_at is null
+        and f.source = 'curated'
+        and not exists (select 1 from public.food_translations t
+                         where t.food_id = f.id and t.locale = 'bg')$q$,
+  'every curated food has a Bulgarian display name');
+
+-- Two minces that differ only by fat content must not read identically. This
+-- is why translations are written by hand rather than derived from the
+-- aliases, which drop qualifiers on purpose so they match what people type.
+select is(
+  (select count(distinct t.name)::int
+     from public.food_translations t
+     join public.foods f on f.id = t.food_id
+    where t.locale = 'bg' and f.source = 'curated'),
+  (select count(*)::int from public.foods where source = 'curated' and is_public),
+  'no two curated foods share a Bulgarian name');
+
 reset role;
 select set_config('request.jwt.claims', '', true);
 set local role anon;

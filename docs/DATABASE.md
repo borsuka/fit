@@ -240,6 +240,27 @@ food carries at least one Bulgarian alias, and a pgTAP test fails if one arrives
 Ties are broken by, in order: a curated alias matched (someone decided this phrase means
 this food), the name starting with the query, source, `data_quality`, then name length.
 
+### Names in the user's language
+
+`food_translations` holds a Bulgarian name for every curated food and does two jobs:
+
+- **Display.** `search_foods(query, limit, locale)` returns `name` already translated,
+  falling back to the catalogue name. Callers get a localised name in the field they
+  already read, so no screen can forget to use it. The same `coalesce` runs in `getFood`,
+  `getRecentFoods`, `getFoodsByIds` and the diary day query, through PostgREST embeds
+  filtered on `locale`.
+- **Search.** Translations are matched alongside names and aliases. A translation keeps
+  the qualifiers an alias deliberately drops, so `без кожа` finds the skinless cuts and
+  nothing in `food_aliases` has to carry that phrase.
+
+Matching always runs across **every** language; the locale decides only what a row is
+called. Someone whose phone is in Bulgarian may well type "chicken", and refusing them
+because of a settings value would be a worse search for no benefit.
+
+Translations are written by hand rather than derived from aliases. An alias is a search
+term and drops qualifiers on purpose - "кайма" has to match both minces - but a diary has
+to tell 5% from 15%. A pgTAP test asserts no two curated foods share a Bulgarian name.
+
 ---
 
 ## 5. Diary
