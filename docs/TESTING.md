@@ -254,7 +254,7 @@ breaks `tsc`, not production.
 
 ## 9. Current state
 
-- **pgTAP: 164 tests, passing against the real local Supabase stack** (`npm run db:test`)
+- **pgTAP: 174 tests, passing against the real local Supabase stack** (`npm run db:test`)
 - **Jest: 379 tests across 19 suites, passing.** `src/domain/nutrition` is at 100%
   statements, functions and lines, 98.3% branches — above the 95/90 gate. The two
   uncovered branches are unreachable defensive guards that protect against a future
@@ -262,6 +262,16 @@ breaks `tsc`, not production.
 - Component tests: scan review, auth form, screen header
 - Local harness: 46 assertions (`npm run db:verify:local`)
 - Maestro: not yet set up; arrives with the first complete user journey
+
+### A test that failed on a correct answer
+
+Two substitution tests pinned an exercise NAME - "the top bench press swap is
+Push-up". Adding an incline push-up to the library broke both, and neither
+answer was wrong: an incline push-up is the same movement, the same muscle and
+the same difficulty. A test that fails when the data gets better is measuring
+the fixture rather than the behaviour. Both now assert the property they were
+always about - same rank, same muscle, no harder - and the localisation one
+compares the two locales against each other instead of naming one.
 
 ### Three bugs the suites found
 

@@ -240,6 +240,13 @@ food carries at least one Bulgarian alias, and a pgTAP test fails if one arrives
 Ties are broken by, in order: a curated alias matched (someone decided this phrase means
 this food), the name starting with the query, source, `data_quality`, then name length.
 
+Catalogue sizes: **351 foods**, **71 recipes** (23 breakfast / 32 lunch / 30 dinner /
+25 snack), **87 exercises**, **10 programmes**. Every curated food carries a Bulgarian
+alias and a Bulgarian display name; every exercise and recipe carries a Bulgarian name,
+and recipes carry Bulgarian instructions. pgTAP asserts all four, as queries over the
+catalogue rather than lists of examples - so a row seeded later without one fails the
+suite instead of surfacing in someone's diary in English.
+
 ### Names in the user's language
 
 `food_translations` holds a Bulgarian name for every curated food and does two jobs:

@@ -187,14 +187,15 @@ select is_empty(
       where a.id = (select id from public.exercises where slug = 'back-squat')$q$,
   'an exercise is never offered as a substitute for itself');
 
-select is(
-  (select a.name
+-- Asserted as a PROPERTY, not a name. This test used to pin 'Push-up' and
+-- broke the moment the library grew an equally valid incline push-up - which
+-- is a test failing on a correct answer, the least useful kind.
+select ok(
+  (select a.match_rank = 1 and a.primary_muscle = 'chest' and a.difficulty <= 2
      from public.suggest_alternatives(
             (select id from public.exercises where slug = 'barbell-bench-press'), 20) a
-    order by a.match_rank, a.difficulty, a.name
     limit 1),
-  'Push-up',
-  'the top bench press substitution is the same movement, same muscle, and the easiest of those');
+  'the top bench press substitution trains the same muscle with the same movement, no harder');
 
 select ok(
   (select bool_and(a.match_rank between 1 and 3)
@@ -238,11 +239,22 @@ select is(
   (select count(*)::int from public.exercises where is_public),
   'an empty query browses the whole public library rather than returning nothing');
 
-select is(
+-- Localisation is the claim here, so the assertion compares the two locales
+-- against EACH OTHER rather than pinning a name. Pinning one made this fail
+-- when the library gained a goblet squat - a test failing on a correct answer.
+select isnt(
   (select name from public.suggest_alternatives(
      (select id from public.exercises where slug = 'back-squat'), 1, 'bg')),
-  'Лег преса',
-  'substitutions are localised too - a picker in one language is the bug this fixes');
+  (select name from public.suggest_alternatives(
+     (select id from public.exercises where slug = 'back-squat'), 1, 'en')),
+  'the top substitution comes back under a different name in each locale');
+
+select is(
+  (select id from public.suggest_alternatives(
+     (select id from public.exercises where slug = 'back-squat'), 1, 'bg')),
+  (select id from public.suggest_alternatives(
+     (select id from public.exercises where slug = 'back-squat'), 1, 'en')),
+  'and it is the same exercise either way - the locale renames, it does not re-rank');
 
 select is_empty(
   $q$select e.slug from public.exercises e
