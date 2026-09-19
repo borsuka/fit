@@ -55,6 +55,10 @@
     "typescript": "~6.0.3"
   },
   "scripts": {
+    "app": "node scripts/launch.mjs",
+    "app:phone": "node scripts/launch.mjs --phone",
+    "app:reset": "node scripts/launch.mjs --reset",
+    "app:stop": "supabase stop",
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
